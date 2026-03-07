@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% set active = "settings" %}
+{% block title %}Access Log{% endblock %}
+{% block content %}
+<div class="page-header anim"><h1>📋 Access Log</h1><p>{{ history|length }} total events</p></div>
+<div class="anim d1">
+{% if history %}
+  {% for e in history %}
+  <div class="log-row">
+    <div style="flex:1;min-width:0"><div class="log-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ e.name }}</div><div class="log-time">{{ e.time }}</div></div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;flex-shrink:0">
+      {% if e.status=='Access Granted' %}<span class="badge badge-green" style="font-size:.58rem">✅ Granted</span>
+      {% elif e.status=='Access Denied' %}<span class="badge badge-red" style="font-size:.58rem">🚫 Denied</span>
+      {% elif e.status=='Registered' %}<span class="badge badge-purple" style="font-size:.58rem">➕ Reg</span>
+      {% elif e.status=='PIN Login' %}<span class="badge badge-amber" style="font-size:.58rem">🔢 PIN</span>
+      {% elif e.status=='Locked Out' %}<span class="badge badge-red" style="font-size:.58rem">🔒 Locked</span>
+      {% elif e.status=='Deleted' %}<span class="badge badge-gray" style="font-size:.58rem">🗑 Deleted</span>
+      {% else %}<span class="badge badge-gray" style="font-size:.58rem">{{ e.status }}</span>{% endif %}
+      {% if e.score is not none %}<span class="mono" style="font-size:.65rem;color:{% if e.score>=78 %}var(--green){% elif e.score>=50 %}var(--amber){% else %}var(--red){% endif %}">{{ e.score }}%</span>{% endif %}
+    </div>
+  </div>
+  {% endfor %}
+{% else %}
+  <div class="card" style="text-align:center;padding:2.5rem;color:var(--text2)">No events recorded yet.</div>
+{% endif %}
+</div>
+{% endblock %}

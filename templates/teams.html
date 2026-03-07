@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% set active = "teams" %}
+{% block title %}Teams{% endblock %}
+{% block content %}
+<div class="page-header anim">
+  <h1>🏷️ Teams</h1>
+  <p>{{ teams|length }} team(s)</p>
+</div>
+
+{% if me.is_admin %}
+<div class="card anim d1" style="margin-bottom:.85rem">
+  <div style="font-weight:700;font-size:.88rem;margin-bottom:.75rem">➕ Create Team</div>
+  <div class="form-group"><label>Team Name *</label><input id="tName" placeholder="e.g. Finance Committee, Grade 11 IT…"></div>
+  <div class="form-group"><label>Description</label><input id="tDesc" placeholder="What is this team for?"></div>
+  <div class="form-group"><label>Color</label><input type="color" id="tColor" value="#38bdf8" style="height:38px;width:60px;border-radius:8px;border:1px solid var(--border2);background:var(--card2);padding:2px"></div>
+  <div class="alert" id="createAlert"></div>
+  <button class="btn btn-primary btn-sm" style="margin-top:.4rem" onclick="createTeam()">✅ Create Team</button>
+</div>
+{% endif %}
+
+<div class="anim d2">
+{% if teams %}
+  {% for t in teams %}
+  <div class="team-card" id="team-{{ t.id }}" style="border-left:3px solid {{ t.color or '#38bdf8' }}">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.5rem">
+      <div>
+        <div class="team-name">{{ t.name }}</div>
+        {% if t.description %}<div class="team-count">{{ t.description }}</div>{% endif %}
+        <div class="team-count" style="margin-top:.2rem">{{ t.member_data|length }} member(s) · Created {{ t.created }}</div>
+      </div>
+      {% if me.is_admin %}
+      <button class="btn btn-danger btn-xs" onclick="deleteTeam('{{ t.id }}')">🗑</button>
+      {% endif %}
+    </div>
+
+    <!-- member avatars -->
+    {% if t.member_data %}
+    <div style="display:flex;flex-wrap:wrap;gap:.4rem;margin-bottom:.65rem">
+      {% for m in t.member_data %}
+      <a href="/profile/{{ m.uid }}" style="display:flex;align-items:center;gap:.35rem;background:var(--card2);border:1px solid var(--border2);border-radius:99px;padding:.2rem .55rem .2rem .2rem;text-decoration:none">
+        {% if m.photo %}<img src="{{ m.photo }}" style="width:24px;height:24px;border-radius:50%;object-fit:cover;flex-shrink:0">
+        {% else %}<div style="width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,#4f46e5,#38bdf8);display:flex;align-items:center;justify-content:center;font-size:.55rem;flex-shrink:0">👤</div>{% endif %}
+        <span style="font-size:.72rem;font-weight:600">{{ m.name }}</span>
+        {% if me.is_admin %}<span style="font-size:.65rem;color:var(--text3);margin-left:.15rem" onclick="event.preventDefault();removeMember('{{ t.id }}','{{ m.uid }}',this)">✕</span>{% endif %}
+      </a>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if me.is_admin %}
+    <div style="display:flex;gap:.4rem">
+      <select id="addMember-{{ t.id }}" style="flex:1;font-size:.76rem">
+        <option value="">— Add member —</option>
+        {% for uid, u in all_users.items() %}<option value="{{ uid }}">{{ u.name }} ({{ u.role }})</option>{% endfor %}
+      </select>
+      <button class="btn btn-primary btn-xs" onclick="addMember('{{ t.id }}')">+ Add</button>
+    </div>
+    {% endif %}
+  </div>
+  {% endfor %}
+{% else %}
+<div class="card" style="text-align:center;padding:2.5rem 1rem;color:var(--text2)">
+  <div style="font-size:2rem;margin-bottom:.65rem">🏷️</div>
+  <div style="font-weight:700;font-size:.9rem">No Teams Yet</div>
+  <p style="font-size:.78rem;margin-top:.3rem">Create a team to group people together.</p>
+</div>
+{% endif %}
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+async function createTeam(){
+  const name=document.getElementById('tName').value.trim();
+  if(!name){showA('createAlert','Name required.','err');return;}
+  const r=await fetch('/api/teams/create',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({name,description:document.getElementById('tDesc').value,color:document.getElementById('tColor').value})});
+  const d=await r.json();
+  if(d.success){location.reload();}
+  else showA('createAlert','Error.','err');
+}
+function showA(id,msg,type){const el=document.getElementById(id);el.className='alert '+type;el.textContent=msg;el.style.display='block';}
+
+async function addMember(tid){
+  const sel=document.getElementById('addMember-'+tid);
+  const uid=sel.value; if(!uid) return;
+  const r=await fetch('/api/teams/'+tid+'/add_member',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({uid})});
+  if((await r.json()).success) location.reload();
+}
+async function removeMember(tid,uid,btn){
+  await fetch('/api/teams/'+tid+'/remove_member/'+uid,{method:'DELETE'});
+  btn.closest('a').remove();
+}
+async function deleteTeam(tid){
+  if(!confirm('Delete this team?')) return;
+  await fetch('/api/teams/'+tid+'/delete',{method:'DELETE'});
+  const el=document.getElementById('team-'+tid);
+  el.style.transition='all .3s';el.style.opacity='0';setTimeout(()=>el.remove(),300);
+}
+</script>
+{% endblock %}

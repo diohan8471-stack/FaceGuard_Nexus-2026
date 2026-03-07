@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Apply — {{ app_name }}</title>
+<link rel="stylesheet" href="/static/style.css">
+<style>
+body{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;min-height:100vh;padding:1.2rem 1rem 2rem;padding-bottom:1.2rem;}
+body::before{content:'';position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse 55% 45% at 15% 15%,rgba(79,70,229,.14),transparent),radial-gradient(ellipse 45% 40% at 85% 85%,rgba(56,189,248,.1),transparent);}
+.wrap{width:100%;max-width:420px;z-index:1;}
+.logo-wrap{text-align:center;margin-bottom:1.2rem;}
+.logo{display:inline-flex;align-items:center;justify-content:center;width:54px;height:54px;border-radius:15px;font-size:1.5rem;background:linear-gradient(135deg,#4f46e5,#38bdf8);box-shadow:0 0 28px rgba(56,189,248,.28);margin-bottom:.6rem;}
+.step-dots{display:flex;justify-content:center;gap:.5rem;margin-bottom:1.2rem;}
+.dot{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.15);transition:all .3s;}
+.dot.done{background:var(--green);} .dot.active{background:var(--accent);width:22px;border-radius:4px;}
+.step{display:none;animation:fadeUp .35s ease both;}
+.step.on{display:block;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="logo-wrap">
+    <div class="logo">🛡️</div>
+    <h1 style="font-size:1.35rem;font-weight:800;background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;">{{ app_name }}</h1>
+    <p style="color:var(--text2);font-size:.76rem;margin-top:.2rem">Submit a registration application</p>
+  </div>
+
+  <div class="step-dots">
+    <div class="dot active" id="dot0"></div>
+    <div class="dot" id="dot1"></div>
+    <div class="dot" id="dot2"></div>
+  </div>
+
+  <!-- Step 1: Personal Info -->
+  <div class="step on" id="step0">
+    <div class="card" style="margin-bottom:.75rem">
+      <div style="font-weight:700;font-size:.92rem;margin-bottom:.8rem">👤 Step 1 — Your Information</div>
+      <div class="form-group"><label>Full Name *</label><input id="aName" placeholder="Enter your full name…"></div>
+      <div class="form-group"><label>Role / Position *</label><input id="aRole" placeholder="e.g. Student, Teacher, Staff…"></div>
+      <div class="form-group"><label>About You</label><textarea id="aDesc" placeholder="Tell us a bit about yourself…"></textarea></div>
+      <div class="form-row">
+        <div class="form-group"><label>Email</label><input id="aEmail" type="email" placeholder="your@email.com"></div>
+        <div class="form-group"><label>Phone</label><input id="aPhone" type="tel" placeholder="+63…"></div>
+      </div>
+      <div class="form-group"><label>Address</label><input id="aAddr" placeholder="City, Province…"></div>
+      <div class="form-group"><label>Birthday</label><input id="aBday" type="date"></div>
+      <div class="form-group"><label>Tags (comma separated)</label><input id="aTags" placeholder="e.g. Grade 11, IT, Officer…"></div>
+      <div class="alert" id="alert1" style="margin-top:.5rem"></div>
+      <button class="btn btn-primary btn-full" style="margin-top:.3rem" onclick="nextStep1()">Next → Face Photos</button>
+    </div>
+    <p style="text-align:center;font-size:.73rem;color:var(--text3)">Already have an account? <a href="/login" style="color:var(--accent)">Log in</a></p>
+  </div>
+
+  <!-- Step 2: Face Photos -->
+  <div class="step" id="step1">
+    <div class="card" style="margin-bottom:.75rem">
+      <div style="font-weight:700;font-size:.92rem;margin-bottom:.35rem">📸 Step 2 — Face Photos</div>
+      <p style="font-size:.76rem;color:var(--text2);margin-bottom:.8rem;line-height:1.5">Take <strong style="color:var(--text)">5 clear photos</strong> of your face. Look straight at the camera for each. These will be used for face recognition login.</p>
+      <div style="position:relative;border-radius:13px;overflow:hidden;background:#000;aspect-ratio:4/3;margin-bottom:.7rem;border:1px solid var(--border2)">
+        <video id="video" autoplay playsinline muted style="width:100%;height:100%;object-fit:cover;transform:scaleX(-1)"></video>
+        <canvas id="camCanvas" style="position:absolute;inset:0;pointer-events:none"></canvas>
+        <div style="position:absolute;bottom:7px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.72);backdrop-filter:blur(6px);border:1px solid var(--border2);border-radius:99px;padding:3px 13px;font-size:.64rem;font-weight:600;color:var(--green)" id="camLbl">● LIVE</div>
+      </div>
+      <!-- photo slot previews -->
+      <div style="display:flex;gap:.4rem;margin-bottom:.7rem;justify-content:center">
+        {% for i in range(5) %}
+        <div id="slot{{ i }}" style="width:52px;height:52px;border-radius:10px;background:var(--card2);border:2px dashed var(--border2);display:flex;align-items:center;justify-content:center;font-size:.75rem;color:var(--text3);overflow:hidden;flex-shrink:0">{{ i+1 }}</div>
+        {% endfor %}
+      </div>
+      <!-- progress bar -->
+      <div class="progress-wrap" style="margin-bottom:.7rem">
+        <div class="progress-label"><span>Photos captured</span><span id="photoCount">0 / 5</span></div>
+        <div class="progress-bg"><div class="progress-fill" id="photoBar" style="width:0%;background:linear-gradient(90deg,#4f46e5,#38bdf8)"></div></div>
+      </div>
+      <div style="display:flex;gap:.45rem;margin-bottom:.5rem">
+        <button class="btn btn-primary btn-sm" style="flex:1" id="btnCapture" onclick="capturePhoto()">📸 Capture</button>
+        <button class="btn btn-ghost btn-sm" onclick="resetPhotos()">↩ Reset</button>
+      </div>
+      <div class="alert" id="alert2"></div>
+      <div style="display:flex;gap:.45rem;margin-top:.6rem">
+        <button class="btn btn-ghost btn-sm" onclick="goStep(0)">← Back</button>
+        <button class="btn btn-success btn-sm" style="flex:1" id="btnNextReview" onclick="goStep(2)" disabled>Next → Review</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 3: Review & Submit -->
+  <div class="step" id="step2">
+    <div class="card" style="margin-bottom:.75rem">
+      <div style="font-weight:700;font-size:.92rem;margin-bottom:.85rem">📋 Step 3 — Review & Submit</div>
+      <!-- preview card -->
+      <div style="background:var(--card2);border:1px solid var(--border2);border-radius:13px;padding:.9rem;margin-bottom:.85rem">
+        <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.7rem">
+          <div id="previewPhoto" style="width:56px;height:56px;border-radius:12px;background:linear-gradient(135deg,#4f46e5,#38bdf8);display:flex;align-items:center;justify-content:center;font-size:1.4rem;overflow:hidden;flex-shrink:0"></div>
+          <div>
+            <div style="font-weight:800;font-size:1rem" id="previewName">—</div>
+            <div style="font-size:.76rem;color:var(--text2);" id="previewRole">—</div>
+            <span class="badge badge-amber" style="margin-top:.3rem;font-size:.6rem">🕐 Pending Approval</span>
+          </div>
+        </div>
+        <div id="previewDetails" style="font-size:.78rem;color:var(--text2);line-height:1.8"></div>
+      </div>
+      <p style="font-size:.76rem;color:var(--text2);line-height:1.6;margin-bottom:.85rem;padding:.65rem;background:rgba(56,189,248,.06);border:1px solid var(--border);border-radius:10px">
+        ℹ️ Your application will be sent to the administrator for review. You will <strong style="color:var(--text)">not be registered immediately</strong>. The admin will approve or reject your request.
+      </p>
+      <div class="alert" id="alert3"></div>
+      <div style="display:flex;gap:.45rem;margin-top:.6rem">
+        <button class="btn btn-ghost btn-sm" onclick="goStep(1)">← Back</button>
+        <button class="btn btn-primary btn-sm" style="flex:1" id="btnSubmit" onclick="submitApplication()">📤 Submit Application</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let photos=[], camStream=null, curStep=0;
+
+// start camera immediately
+(async()=>{
+  try {
+    camStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:{ideal:640},height:{ideal:480}}});
+    const v=document.getElementById('video'); v.srcObject=camStream;
+    v.onloadedmetadata=()=>{
+      const c=document.getElementById('camCanvas');
+      const loop=()=>{
+        c.width=v.offsetWidth; c.height=v.offsetHeight;
+        const ctx=c.getContext('2d'); ctx.clearRect(0,0,c.width,c.height);
+        const cx=c.width/2,cy=c.height/2,rx=c.width*.27,ry=c.height*.37;
+        ctx.beginPath(); ctx.ellipse(cx,cy,rx,ry,0,0,Math.PI*2);
+        ctx.strokeStyle='rgba(56,189,248,.45)'; ctx.lineWidth=2; ctx.setLineDash([7,5]); ctx.stroke(); ctx.setLineDash([]);
+        requestAnimationFrame(loop);
+      };
+      loop();
+    };
+  } catch(e) { document.getElementById('camLbl').textContent='⚠ No camera'; }
+})();
+
+function goStep(n){
+  document.getElementById('step'+curStep).classList.remove('on');
+  curStep=n;
+  document.getElementById('step'+n).classList.add('on');
+  for(let i=0;i<3;i++){
+    const d=document.getElementById('dot'+i);
+    d.className='dot'+(i<n?' done':i===n?' active':'');
+  }
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function show(id,msg,type){const el=document.getElementById(id);el.className='alert '+type;el.textContent=msg;el.style.display='block';}
+
+function nextStep1(){
+  const name=document.getElementById('aName').value.trim();
+  const role=document.getElementById('aRole').value.trim();
+  if(!name){show('alert1','Full name is required.','err');return;}
+  if(!role){show('alert1','Role / position is required.','err');return;}
+  document.getElementById('alert1').style.display='none';
+  goStep(1);
+}
+
+function capturePhoto(){
+  const v=document.getElementById('video');
+  if(photos.length>=5) return;
+  const c=document.createElement('canvas'); c.width=v.videoWidth||640; c.height=v.videoHeight||480;
+  const x=c.getContext('2d'); x.translate(c.width,0); x.scale(-1,1); x.drawImage(v,0,0);
+  const img=c.toDataURL('image/jpeg',.88); photos.push(img);
+  const slot=document.getElementById('slot'+(photos.length-1));
+  slot.innerHTML=`<img src="${img}" style="width:100%;height:100%;object-fit:cover">`;
+  slot.style.borderColor='var(--green)';
+  document.getElementById('photoCount').textContent=photos.length+' / 5';
+  document.getElementById('photoBar').style.width=(photos.length*20)+'%';
+  if(photos.length>=5){document.getElementById('btnCapture').disabled=true;}
+  if(photos.length>=3){document.getElementById('btnNextReview').disabled=false;}
+  show('alert2',`Photo ${photos.length}/5 captured.${photos.length<3?' Need at least 3.':''}`,photos.length>=3?'ok':'inf');
+}
+function resetPhotos(){
+  photos=[];
+  for(let i=0;i<5;i++){const s=document.getElementById('slot'+i);s.innerHTML=(i+1).toString();s.style.borderColor='rgba(255,255,255,.12)';}
+  document.getElementById('photoCount').textContent='0 / 5';
+  document.getElementById('photoBar').style.width='0%';
+  document.getElementById('btnCapture').disabled=false;
+  document.getElementById('btnNextReview').disabled=true;
+  document.getElementById('alert2').style.display='none';
+}
+function goStep2Check(){
+  if(!photos.length){show('alert2','Take at least 1 photo.','err');return;}
+  buildPreview(); goStep(2);
+}
+
+// override next button
+document.getElementById('btnNextReview').onclick=()=>{buildPreview();goStep(2);};
+
+function buildPreview(){
+  document.getElementById('previewName').textContent=document.getElementById('aName').value.trim()||'—';
+  document.getElementById('previewRole').textContent=document.getElementById('aRole').value.trim()||'—';
+  if(photos.length){
+    const pp=document.getElementById('previewPhoto');
+    pp.innerHTML=`<img src="${photos[0]}" style="width:100%;height:100%;object-fit:cover">`;
+  }
+  const details=[];
+  const desc=document.getElementById('aDesc').value.trim(); if(desc) details.push('📝 '+desc.substring(0,80)+(desc.length>80?'…':''));
+  const email=document.getElementById('aEmail').value.trim(); if(email) details.push('✉️ '+email);
+  const phone=document.getElementById('aPhone').value.trim(); if(phone) details.push('📞 '+phone);
+  const addr=document.getElementById('aAddr').value.trim(); if(addr) details.push('📍 '+addr);
+  const bday=document.getElementById('aBday').value; if(bday) details.push('🎂 '+bday);
+  details.push('📸 '+photos.length+' face photo(s)');
+  document.getElementById('previewDetails').innerHTML=details.join('<br>');
+}
+
+async function submitApplication(){
+  const btn=document.getElementById('btnSubmit');
+  btn.disabled=true; btn.textContent='⏳ Submitting…';
+  const tags=document.getElementById('aTags').value.split(',').map(t=>t.trim()).filter(Boolean);
+  const payload={
+    name:document.getElementById('aName').value.trim(),
+    role:document.getElementById('aRole').value.trim(),
+    description:document.getElementById('aDesc').value.trim(),
+    email:document.getElementById('aEmail').value.trim(),
+    phone:document.getElementById('aPhone').value.trim(),
+    address:document.getElementById('aAddr').value.trim(),
+    birthday:document.getElementById('aBday').value,
+    tags, photos
+  };
+  try {
+    const r=await fetch('/api/apply',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    const d=await r.json();
+    if(d.success){
+      location.href='/apply/status?id='+d.id;
+    } else {
+      show('alert3','❌ '+d.message,'err');
+      btn.disabled=false; btn.textContent='📤 Submit Application';
+    }
+  } catch(e){
+    show('alert3','⚠️ Connection error. Try again.','err');
+    btn.disabled=false; btn.textContent='📤 Submit Application';
+  }
+}
+</script>
+</body>
+</html>

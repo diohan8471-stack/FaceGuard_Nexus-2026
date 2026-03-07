@@ -1,0 +1,245 @@
+{% extends "base.html" %}
+{% block title %}Add Person{% endblock %}
+{% block content %}
+
+<div style="background:rgba(56,189,248,.07);border:1px solid rgba(56,189,248,.2);border-radius:12px;padding:.85rem 1rem;margin-bottom:1.2rem;display:flex;align-items:center;gap:.75rem" id="setupBanner">
+  <span style="font-size:1.2rem">🛡️</span>
+  <div>
+    <div style="font-weight:700;font-size:.88rem;color:var(--accent)" id="bannerTitle">Register New Person</div>
+    <div style="font-size:.76rem;color:var(--text2)" id="bannerSub">Fill in the details and take 5 face photos.</div>
+  </div>
+  <a href="/login" class="btn btn-ghost btn-xs" style="margin-left:auto">← Back to Login</a>
+</div>
+
+<div class="page-header anim">
+  <div><h1>➕ Add New Person</h1><p>Register face and fill in profile details.</p></div>
+</div>
+
+<div class="grid-2" style="align-items:start">
+
+  <!-- camera side -->
+  <div class="card anim">
+    <div style="font-weight:700;font-size:.88rem;margin-bottom:.9rem">📸 Face Capture (take 5 photos)</div>
+
+    <div style="position:relative;border-radius:13px;overflow:hidden;background:#000;aspect-ratio:4/3;margin-bottom:.8rem;border:1px solid var(--border2)" id="camWrap">
+      <video id="video" autoplay playsinline muted style="width:100%;height:100%;object-fit:cover;transform:scaleX(-1);display:block"></video>
+      <canvas id="overlay" style="position:absolute;inset:0;pointer-events:none"></canvas>
+      <div id="scanBar" style="position:absolute;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,#38bdf8,transparent);top:0;opacity:0"></div>
+    </div>
+
+    <div id="previewBox" style="display:none;border-radius:12px;overflow:hidden;border:2px solid var(--green);margin-bottom:.8rem;aspect-ratio:4/3">
+      <img id="previewImg" style="width:100%;height:100%;object-fit:cover" src="" alt="">
+    </div>
+
+    <!-- sample slots -->
+    <div style="display:flex;gap:.45rem;margin-bottom:.8rem;justify-content:center">
+      <div id="slot0" style="width:50px;height:50px;border-radius:10px;background:rgba(255,255,255,.04);border:2px dashed rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;font-size:.8rem;color:var(--text3);overflow:hidden">1</div>
+      <div id="slot1" style="width:50px;height:50px;border-radius:10px;background:rgba(255,255,255,.04);border:2px dashed rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;font-size:.8rem;color:var(--text3);overflow:hidden">2</div>
+      <div id="slot2" style="width:50px;height:50px;border-radius:10px;background:rgba(255,255,255,.04);border:2px dashed rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;font-size:.8rem;color:var(--text3);overflow:hidden">3</div>
+      <div id="slot3" style="width:50px;height:50px;border-radius:10px;background:rgba(255,255,255,.04);border:2px dashed rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;font-size:.8rem;color:var(--text3);overflow:hidden">4</div>
+      <div id="slot4" style="width:50px;height:50px;border-radius:10px;background:rgba(255,255,255,.04);border:2px dashed rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;font-size:.8rem;color:var(--text3);overflow:hidden">5</div>
+    </div>
+
+    <!-- progress bar -->
+    <div style="margin-bottom:.8rem">
+      <div style="display:flex;justify-content:space-between;margin-bottom:.3rem">
+        <span style="font-size:.72rem;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;font-weight:600">Photos captured</span>
+        <span style="font-size:.72rem;color:var(--accent);font-weight:700" id="progVal">0 / 5</span>
+      </div>
+      <div style="height:5px;background:rgba(255,255,255,.07);border-radius:99px;overflow:hidden">
+        <div id="progFill" style="height:100%;background:linear-gradient(90deg,#4f46e5,#38bdf8);border-radius:99px;width:0%;transition:width .4s ease"></div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:.6rem">
+      <button class="btn btn-primary" style="flex:1" id="btnCap" onclick="captureOne()">📸 Capture Photo</button>
+      <button class="btn btn-ghost" style="flex:1" onclick="resetPhotos()">↩ Reset</button>
+    </div>
+  </div>
+
+  <!-- details side -->
+  <div class="card anim d1">
+    <div style="font-weight:700;font-size:.88rem;margin-bottom:.9rem">📋 Person Details</div>
+
+    <div class="form-row">
+      <div class="form-group"><label>Full Name *</label><input id="fname" type="text" placeholder="e.g. Juan Dela Cruz"></div>
+      <div class="form-group"><label>Role *</label><input id="frole" type="text" placeholder="e.g. Volunteer"></div>
+    </div>
+    <div class="form-group"><label>Description</label><textarea id="fdesc" placeholder="Short description…"></textarea></div>
+    <div class="form-row">
+      <div class="form-group"><label>Email</label><input id="femail" type="email" placeholder="email@example.com"></div>
+      <div class="form-group"><label>Phone</label><input id="fphone" type="tel" placeholder="+63 9xx xxx xxxx"></div>
+    </div>
+    <div class="form-group"><label>Address</label><input id="faddress" placeholder="City / Barangay"></div>
+    <div class="form-group"><label>Tags (comma separated)</label><input id="ftags" placeholder="e.g. volunteer, staff, vip"></div>
+    <div class="form-group">
+      <label>Role Type</label>
+      <select id="froleType">
+        <option value="member">Member</option>
+        <option value="admin">Admin</option>
+      </select>
+    </div>
+
+    <button class="btn btn-success btn-full" id="btnReg" onclick="registerUser()" disabled>
+      ✅ &nbsp;Register Person
+    </button>
+    <div class="alert" id="regAlert" style="margin-top:.7rem"></div>
+  </div>
+
+</div>
+{% endblock %}
+{% block scripts %}
+<style>@keyframes scanAnim{0%{top:0%}100%{top:100%}}</style>
+<script>
+const video    = document.getElementById('video');
+const canvas   = document.getElementById('overlay');
+const ctx      = canvas.getContext('2d');
+const scanBar  = document.getElementById('scanBar');
+const progFill = document.getElementById('progFill');
+const progVal  = document.getElementById('progVal');
+const btnCap   = document.getElementById('btnCap');
+const btnReg   = document.getElementById('btnReg');
+const alertEl  = document.getElementById('regAlert');
+const previewBox = document.getElementById('previewBox');
+const previewImg = document.getElementById('previewImg');
+const MAX = 5;
+let photos = [];
+
+// start camera
+navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } })
+  .then(s => {
+    video.srcObject = s;
+    video.onloadedmetadata = () => {
+      canvas.width  = video.videoWidth;
+      canvas.height = video.videoHeight;
+      requestAnimationFrame(drawLoop);
+    };
+  })
+  .catch(() => showA('Camera access denied.', 'err'));
+
+function drawLoop() {
+  canvas.width  = video.offsetWidth;
+  canvas.height = video.offsetHeight;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  const cx = canvas.width / 2, cy = canvas.height / 2;
+  const rx = canvas.width * .27, ry = canvas.height * .37;
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+  ctx.strokeStyle = 'rgba(56,189,248,.45)';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([7, 5]);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  requestAnimationFrame(drawLoop);
+}
+
+function snap() {
+  const c = document.createElement('canvas');
+  c.width  = video.videoWidth  || 640;
+  c.height = video.videoHeight || 480;
+  const x  = c.getContext('2d');
+  x.translate(c.width, 0); x.scale(-1, 1);
+  x.drawImage(video, 0, 0);
+  return c.toDataURL('image/jpeg', .88);
+}
+
+function captureOne() {
+  if (photos.length >= MAX) return;
+  scanBar.style.opacity   = '1';
+  scanBar.style.animation = 'scanAnim 1.5s linear infinite';
+  setTimeout(() => {
+    const img = snap();
+    const idx = photos.length;
+    photos.push(img);
+    const slot = document.getElementById('slot' + idx);
+    slot.innerHTML = '<img src="' + img + '" style="width:100%;height:100%;object-fit:cover">';
+    slot.style.borderColor = 'var(--green)';
+    previewImg.src = img;
+    previewBox.style.display = 'block';
+    scanBar.style.opacity = '0';
+    updateProg();
+    if (photos.length === MAX) showA('All 5 photos captured! Fill in the details and register.', 'ok');
+    else showA('Photo ' + photos.length + ' of ' + MAX + ' captured. ' + (MAX - photos.length) + ' more to go.', 'inf');
+  }, 700);
+}
+
+function resetPhotos() {
+  photos = [];
+  for (let i = 0; i < MAX; i++) {
+    const s = document.getElementById('slot' + i);
+    s.innerHTML = (i + 1).toString();
+    s.style.borderColor = 'rgba(255,255,255,.12)';
+  }
+  previewBox.style.display = 'none';
+  alertEl.style.display = 'none';
+  updateProg();
+}
+
+function updateProg() {
+  const pct = (photos.length / MAX) * 100;
+  progFill.style.width    = pct + '%';
+  progVal.textContent     = photos.length + ' / ' + MAX;
+  btnReg.disabled         = photos.length === 0;
+  btnCap.disabled         = photos.length >= MAX;
+  btnCap.textContent      = photos.length >= MAX ? '✅ Done' : '📸 Capture Photo';
+}
+
+function showA(msg, type) {
+  alertEl.className   = 'alert ' + type;
+  alertEl.textContent = msg;
+  alertEl.style.display = 'block';
+}
+
+async function registerUser() {
+  const name = document.getElementById('fname').value.trim();
+  const role = document.getElementById('frole').value.trim();
+  if (!name || !role) { showA('Name and Role are required.', 'err'); return; }
+  if (!photos.length) { showA('Capture at least 1 photo first.', 'err'); return; }
+  const tags = document.getElementById('ftags').value.split(',').map(t => t.trim()).filter(Boolean);
+  btnReg.disabled    = true;
+  btnReg.textContent = '⏳ Registering…';
+  try {
+    const res  = await fetch('/api/register', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name,
+        role,
+        description: document.getElementById('fdesc').value,
+        email:       document.getElementById('femail').value,
+        phone:       document.getElementById('fphone').value,
+        address:     document.getElementById('faddress').value,
+        role_type:   document.getElementById('froleType').value,
+        tags,
+        photos
+      })
+    });
+    const d = await res.json();
+    if (d.success) {
+      showA('✅ ' + d.message, 'ok');
+      setTimeout(() => location.href = '/login', 1600);
+    } else {
+      showA('❌ ' + d.message, 'err');
+    }
+  } catch (e) {
+    showA('⚠️ Server error. Is app.py running?', 'err');
+  }
+  btnReg.disabled   = false;
+  btnReg.innerHTML  = '✅ &nbsp;Register Person';
+}
+
+updateProg();
+
+// detect first-run and update banner styling
+fetch('/api/users').then(r => r.json()).then(users => {
+  if (Object.keys(users).length === 0) {
+    document.getElementById('bannerTitle').textContent = '👑 Admin Setup — First Time';
+    document.getElementById('bannerSub').textContent   = 'No users yet. Register yourself as admin to get started!';
+    document.getElementById('setupBanner').style.background   = 'rgba(251,191,36,.1)';
+    document.getElementById('setupBanner').style.borderColor  = 'rgba(251,191,36,.3)';
+    document.getElementById('bannerTitle').style.color        = 'var(--amber)';
+    document.getElementById('froleType').value = 'admin';
+  }
+});
+</script>
+{% endblock %}

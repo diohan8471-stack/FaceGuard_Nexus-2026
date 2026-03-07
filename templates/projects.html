@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% set active = "projects" %}
+{% block title %}All Projects{% endblock %}
+{% block content %}
+<div class="page-header anim">
+  <h1>📁 All Projects</h1>
+  <p>{{ projects|length }} project(s)</p>
+</div>
+
+<form method="get" action="/projects" style="display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:.85rem" class="anim d1">
+  <select name="status" style="flex:1;min-width:0">
+    <option value="">All Status</option>
+    <option value="ongoing"   {% if status_f=='ongoing'   %}selected{% endif %}>🔄 Ongoing</option>
+    <option value="pending"   {% if status_f=='pending'   %}selected{% endif %}>⏳ Pending</option>
+    <option value="completed" {% if status_f=='completed' %}selected{% endif %}>✅ Completed</option>
+    <option value="cancelled" {% if status_f=='cancelled' %}selected{% endif %}>✕ Cancelled</option>
+  </select>
+  <select name="priority" style="flex:1;min-width:0">
+    <option value="">All Priority</option>
+    <option value="urgent" {% if priority_f=='urgent' %}selected{% endif %}>🔥 Urgent</option>
+    <option value="high"   {% if priority_f=='high'   %}selected{% endif %}>↑ High</option>
+    <option value="medium" {% if priority_f=='medium' %}selected{% endif %}>● Medium</option>
+    <option value="low"    {% if priority_f=='low'    %}selected{% endif %}>↓ Low</option>
+  </select>
+  <button type="submit" class="btn btn-primary btn-sm">Filter</button>
+  {% if status_f or priority_f %}<a href="/projects" class="btn btn-ghost btn-sm">✕</a>{% endif %}
+</form>
+
+<div class="anim d2">
+{% if projects %}
+  {% for p in projects %}
+  <div class="proj-card prio-{{ p.priority or 'medium' }}" style="margin-bottom:.65rem">
+    <a href="/profile/{{ p.person_uid }}" style="display:flex;align-items:center;gap:.5rem;margin-bottom:.6rem;text-decoration:none">
+      {% if p.person_photo %}<img src="{{ p.person_photo }}" style="width:28px;height:28px;border-radius:7px;object-fit:cover;flex-shrink:0;border:1px solid var(--border2)">
+      {% else %}<div style="width:28px;height:28px;border-radius:7px;background:linear-gradient(135deg,#4f46e5,#38bdf8);display:flex;align-items:center;justify-content:center;font-size:.7rem;flex-shrink:0">👤</div>{% endif %}
+      <span style="font-size:.74rem;color:var(--text2);font-weight:600">{{ p.person_name }}</span>
+    </a>
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.3rem">
+      <div class="proj-title">{{ p.title }}</div>
+      <div style="display:flex;gap:.22rem;flex-shrink:0">
+        {% if p.status=='completed' %}<span class="badge badge-green" style="font-size:.58rem">✅</span>
+        {% elif p.status=='ongoing' %}<span class="badge badge-blue" style="font-size:.58rem">🔄</span>
+        {% elif p.status=='pending' %}<span class="badge badge-amber" style="font-size:.58rem">⏳</span>
+        {% else %}<span class="badge badge-red" style="font-size:.58rem">✕</span>{% endif %}
+        {% if p.priority=='urgent' %}<span class="badge badge-purple" style="font-size:.58rem">🔥</span>
+        {% elif p.priority=='high' %}<span class="badge badge-red" style="font-size:.58rem">↑</span>
+        {% elif p.priority=='low' %}<span class="badge badge-green" style="font-size:.58rem">↓</span>{% endif %}
+      </div>
+    </div>
+    {% if p.description %}<p class="proj-desc">{{ p.description }}</p>{% endif %}
+    {% set prog = p.progress if p.progress is defined else 0 %}
+    <div class="progress-wrap" style="margin:.4rem 0">
+      <div class="progress-label"><span>Progress</span><span>{{ prog }}%</span></div>
+      <div class="progress-bg"><div class="progress-fill" style="width:{{ prog }}%;background:linear-gradient(90deg,#4f46e5,#38bdf8)"></div></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:.4rem;flex-wrap:wrap">
+      <span class="proj-meta">{% if p.due %}📅 {{ p.due }}{% endif %}</span>
+      {% if p.days_left is defined and p.days_left is not none %}
+        {% if p.days_left < 0 %}<span class="due-chip due-overdue">{{ p.days_left|abs }}d overdue</span>
+        {% elif p.days_left <= 3 %}<span class="due-chip due-soon">{{ p.days_left }}d left</span>
+        {% else %}<span class="due-chip due-ok">{{ p.days_left }}d left</span>{% endif %}
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+{% else %}
+<div class="card" style="text-align:center;padding:2.5rem 1rem;color:var(--text2)">
+  <div style="font-size:2rem;margin-bottom:.65rem">📁</div>
+  <p>No projects found.{% if status_f or priority_f %} Try clearing filters.{% endif %}</p>
+</div>
+{% endif %}
+</div>
+{% endblock %}

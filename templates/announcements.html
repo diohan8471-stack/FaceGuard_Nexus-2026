@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% set active = "announcements" %}
+{% block title %}Announcements{% endblock %}
+{% block content %}
+<div class="page-header anim"><h1>📢 Announcements</h1><p>Post and manage notices</p></div>
+
+<div class="card anim d1" style="margin-bottom:.8rem">
+  <div style="font-weight:700;font-size:.88rem;margin-bottom:.75rem">✏️ Post New</div>
+  <div class="form-group"><label>Title *</label><input id="aTitle" placeholder="Announcement title…"></div>
+  <div class="form-group"><label>Message</label><textarea id="aBody" placeholder="Write your message…"></textarea></div>
+  <div class="form-row">
+    <div class="form-group">
+      <label>Category</label>
+      <select id="aCat"><option value="General">General</option><option value="Urgent">Urgent</option><option value="Event">Event</option><option value="Reminder">Reminder</option></select>
+    </div>
+    <div class="form-group"><label>Expires (optional)</label><input id="aExpires" type="date"></div>
+  </div>
+  <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.75rem">
+    <input type="checkbox" id="aPin" style="width:auto;height:auto">
+    <label style="margin:0;text-transform:none;letter-spacing:0;font-size:.83rem;color:var(--text);font-weight:500">📌 Pin this announcement</label>
+  </div>
+  <button class="btn btn-primary btn-sm" onclick="postAnn()">📢 Post</button>
+  <div class="alert" id="alert" style="margin-top:.55rem"></div>
+</div>
+
+<!-- category filter chips -->
+{% if cats %}
+<div style="display:flex;gap:.35rem;flex-wrap:wrap;margin-bottom:.75rem" class="anim d2">
+  <span class="chip active" id="chip-all" onclick="filterCat('all')">All</span>
+  {% for c in cats %}<span class="chip" id="chip-{{ c }}" onclick="filterCat('{{ c }}')">{{ c }}</span>{% endfor %}
+</div>
+{% endif %}
+
+<div id="annList" class="anim d3">
+{% if announcements %}
+  {% for a in announcements %}
+  <div class="card card-sm" id="ann-{{ a.id }}" data-cat="{{ a.category or 'General' }}" style="margin-bottom:.6rem;border-left:3px solid {% if a.pin %}var(--amber){% elif a.category=='Urgent' %}var(--red){% elif a.category=='Event' %}var(--purple){% else %}var(--accent){% endif %}">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:.5rem">
+      <div style="flex:1">
+        <div style="display:flex;align-items:center;gap:.35rem;flex-wrap:wrap;margin-bottom:.28rem">
+          {% if a.pin %}<span class="badge badge-amber" style="font-size:.58rem">📌</span>{% endif %}
+          <span class="badge {% if a.category=='Urgent' %}badge-red{% elif a.category=='Event' %}badge-purple{% elif a.category=='Reminder' %}badge-amber{% else %}badge-blue{% endif %}" style="font-size:.58rem">{{ a.category or 'General' }}</span>
+          <span style="font-weight:700;font-size:.86rem">{{ a.title }}</span>
+        </div>
+        <p style="font-size:.78rem;color:var(--text2);line-height:1.5;margin-bottom:.3rem">{{ a.body }}</p>
+        <div style="font-size:.66rem;color:var(--text3)">{{ a.date }} · {{ a.author }}{% if a.expires %} · Expires: {{ a.expires }}{% endif %}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:.25rem;flex-shrink:0">
+        <button class="btn btn-ghost btn-xs" onclick="openEdit({{ a.id }},'{{ a.title|replace("'","\\'") }}','{{ a.body|replace("'","\\'") }}','{{ a.category or "General" }}','{{ a.expires or "" }}',{{ 'true' if a.pin else 'false' }})">✏️</button>
+        <button class="btn btn-danger btn-xs" onclick="delAnn({{ a.id }})">🗑</button>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+{% else %}
+  <div class="card" style="text-align:center;padding:2rem;color:var(--text2)">No announcements yet.</div>
+{% endif %}
+</div>
+
+<!-- edit modal -->
+<div class="modal-bg" id="editModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(6px);z-index:400;align-items:center;justify-content:center;padding:1rem">
+  <div style="background:var(--card);border:1px solid var(--border2);border-radius:16px;padding:1.2rem;width:100%;max-width:380px">
+    <div style="display:flex;justify-content:space-between;margin-bottom:.75rem">
+      <span style="font-weight:700">✏️ Edit Announcement</span>
+      <button class="btn btn-ghost btn-xs" onclick="document.getElementById('editModal').style.display='none'">✕</button>
+    </div>
+    <input type="hidden" id="eId">
+    <div class="form-group"><label>Title</label><input id="eTitle"></div>
+    <div class="form-group"><label>Message</label><textarea id="eBody"></textarea></div>
+    <div class="form-row">
+      <div class="form-group"><label>Category</label><select id="eCat"><option value="General">General</option><option value="Urgent">Urgent</option><option value="Event">Event</option><option value="Reminder">Reminder</option></select></div>
+      <div class="form-group"><label>Expires</label><input id="eExpires" type="date"></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:.45rem;margin-bottom:.7rem"><input type="checkbox" id="ePin" style="width:auto;height:auto"><label style="margin:0;text-transform:none;letter-spacing:0;font-size:.82rem;color:var(--text)">📌 Pinned</label></div>
+    <button class="btn btn-success btn-sm" onclick="saveEdit()">💾 Save</button>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+function show(msg,t){const el=document.getElementById('alert');el.className='alert '+t;el.textContent=msg;el.style.display='block';}
+async function postAnn(){
+  const title=document.getElementById('aTitle').value.trim();
+  if(!title){show('Title required.','err');return;}
+  const r=await fetch('/api/announce/add',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({title,body:document.getElementById('aBody').value,
+      category:document.getElementById('aCat').value,expires:document.getElementById('aExpires').value,
+      pin:document.getElementById('aPin').checked})});
+  const d=await r.json();
+  if(d.success){show('Posted!','ok');setTimeout(()=>location.reload(),600);}
+  else show('Error.','err');
+}
+async function delAnn(id){
+  if(!confirm('Delete?'))return;
+  await fetch('/api/announce/delete/'+id,{method:'DELETE'});
+  const el=document.getElementById('ann-'+id);el.style.transition='all .3s';el.style.opacity='0';el.style.transform='scale(.96)';setTimeout(()=>el.remove(),300);
+}
+function openEdit(id,title,body,cat,expires,pin){
+  document.getElementById('eId').value=id;document.getElementById('eTitle').value=title;
+  document.getElementById('eBody').value=body;document.getElementById('eCat').value=cat;
+  document.getElementById('eExpires').value=expires;document.getElementById('ePin').checked=pin;
+  document.getElementById('editModal').style.display='flex';
+}
+async function saveEdit(){
+  const id=parseInt(document.getElementById('eId').value);
+  await fetch('/api/announce/edit/'+id,{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({title:document.getElementById('eTitle').value,body:document.getElementById('eBody').value,
+      category:document.getElementById('eCat').value,expires:document.getElementById('eExpires').value,
+      pin:document.getElementById('ePin').checked})});
+  document.getElementById('editModal').style.display='none';location.reload();
+}
+// category filter
+let curCat='all';
+function filterCat(cat){
+  curCat=cat;
+  document.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
+  document.getElementById('chip-'+(cat==='all'?'all':cat)).classList.add('active');
+  document.querySelectorAll('#annList [data-cat]').forEach(el=>{
+    el.style.display=(cat==='all'||el.dataset.cat===cat)?'block':'none';
+  });
+}
+</script>
+{% endblock %}

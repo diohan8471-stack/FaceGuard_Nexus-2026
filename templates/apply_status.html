@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Application Status — {{ app_name }}</title>
+<link rel="stylesheet" href="/static/style.css">
+<style>
+body{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:1.2rem;padding-bottom:1.2rem;}
+body::before{content:'';position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse 55% 45% at 20% 20%,rgba(79,70,229,.12),transparent);}
+.wrap{width:100%;max-width:400px;z-index:1;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div style="text-align:center;margin-bottom:1.2rem">
+    <div style="display:inline-flex;align-items:center;justify-content:center;width:58px;height:58px;border-radius:16px;background:linear-gradient(135deg,#4f46e5,#38bdf8);font-size:1.6rem;margin-bottom:.65rem;box-shadow:0 0 28px rgba(56,189,248,.25)">🛡️</div>
+    <h1 style="font-size:1.2rem;font-weight:800;background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;">{{ app_name }}</h1>
+  </div>
+
+  {% if not item %}
+  <div class="card" style="text-align:center;padding:2rem">
+    <div style="font-size:2rem;margin-bottom:.75rem">❓</div>
+    <div style="font-weight:700;font-size:1rem;margin-bottom:.4rem">Application Not Found</div>
+    <p style="color:var(--text2);font-size:.82rem;margin-bottom:1rem">The application ID was not found. It may have been removed.</p>
+    <a href="/apply" class="btn btn-primary btn-sm">Submit New Application</a>
+  </div>
+
+  {% elif item.status == 'pending' %}
+  <div class="card" style="border:1px solid rgba(251,191,36,.3)">
+    <div style="text-align:center;padding:.5rem 0 .85rem">
+      <div style="font-size:2.5rem;margin-bottom:.5rem">🕐</div>
+      <div style="font-weight:800;font-size:1.1rem;color:var(--amber)">Pending Review</div>
+      <p style="font-size:.78rem;color:var(--text2);margin-top:.35rem">Your application is waiting for admin approval.</p>
+    </div>
+    <div style="background:var(--card2);border-radius:11px;padding:.85rem;margin-bottom:.85rem">
+      <div class="info-row"><span class="info-label">Name</span><span class="info-value">{{ item.name }}</span></div>
+      <div class="info-row"><span class="info-label">Role</span><span class="info-value">{{ item.role }}</span></div>
+      <div class="info-row"><span class="info-label">Submitted</span><span class="info-value" style="font-size:.74rem">{{ item.submitted }}</span></div>
+      <div class="info-row" style="border:none"><span class="info-label">App ID</span><span class="info-value mono" style="font-size:.72rem;color:var(--text3)">{{ item.id }}</span></div>
+    </div>
+    <p style="font-size:.74rem;color:var(--text2);line-height:1.6;text-align:center">
+      💾 Save this page link or your Application ID to check back later.<br>The admin will review your request shortly.
+    </p>
+  </div>
+
+  {% elif item.status == 'approved' %}
+  <div class="card" style="border:1px solid rgba(52,211,153,.3)">
+    <div style="text-align:center;padding:.5rem 0 .85rem">
+      <div style="font-size:2.5rem;margin-bottom:.5rem">✅</div>
+      <div style="font-weight:800;font-size:1.1rem;color:var(--green)">Application Approved!</div>
+      <p style="font-size:.78rem;color:var(--text2);margin-top:.35rem">You are now registered in the system.</p>
+    </div>
+    <div style="background:var(--card2);border-radius:11px;padding:.85rem;margin-bottom:.9rem">
+      <div class="info-row"><span class="info-label">Name</span><span class="info-value">{{ item.name }}</span></div>
+      <div class="info-row"><span class="info-label">Approved by</span><span class="info-value">{{ item.approved_by or '—' }}</span></div>
+      <div class="info-row" style="border:none"><span class="info-label">Approved at</span><span class="info-value" style="font-size:.74rem">{{ item.approved_at or '—' }}</span></div>
+    </div>
+    <a href="/login" class="btn btn-success btn-full">🔐 Go to Login</a>
+  </div>
+
+  {% elif item.status == 'rejected' %}
+  <div class="card" style="border:1px solid rgba(248,113,113,.3)">
+    <div style="text-align:center;padding:.5rem 0 .85rem">
+      <div style="font-size:2.5rem;margin-bottom:.5rem">❌</div>
+      <div style="font-weight:800;font-size:1.1rem;color:var(--red)">Application Rejected</div>
+      <p style="font-size:.78rem;color:var(--text2);margin-top:.35rem">Your application was not approved.</p>
+    </div>
+    {% if item.reject_reason %}
+    <div style="background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.2);border-radius:11px;padding:.85rem;margin-bottom:.85rem">
+      <div style="font-size:.7rem;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:.3rem">Reason</div>
+      <div style="font-size:.84rem;line-height:1.55">{{ item.reject_reason }}</div>
+    </div>
+    {% endif %}
+    <a href="/apply" class="btn btn-ghost btn-full">Submit New Application</a>
+  </div>
+  {% endif %}
+
+  <p style="text-align:center;margin-top:1rem;font-size:.72rem;color:var(--text3)">
+    <a href="/login" style="color:var(--text3)">← Back to Login</a>
+  </p>
+</div>
+</body>
+</html>

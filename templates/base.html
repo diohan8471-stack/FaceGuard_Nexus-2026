@@ -1,1 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="theme-color" content="#07090f">
+<link rel="manifest" href="/static/manifest.json">
+<title>{% block title %}Nexus{% endblock %}</title>
+<link rel="stylesheet" href="/static/style.css">
+<style id="accentStyle"></style>
+</head>
+<body>
 
+<header class="topbar">
+  <div class="brand">
+    <div class="brand-icon">🛡️</div>
+    <span class="brand-name" id="appNameTop">Nexus</span>
+  </div>
+  <div class="topbar-search">
+    <span class="search-icon">🔍</span>
+    <input type="text" id="globalSearch" placeholder="Search…" autocomplete="off">
+    <div class="search-results" id="searchResults"></div>
+  </div>
+  <a href="/profile/{{ me.uid if me else '' }}" class="topbar-avatar">
+    {% if me and me.photo %}<img src="{{ me.photo }}" alt="">{% else %}👤{% endif %}
+  </a>
+</header>
+
+<main class="main">{% block content %}{% endblock %}</main>
+
+<nav class="bottom-nav">
+  <a href="/dashboard"     class="bnav-item {% if active=='dashboard'     %}active{% endif %}"><span class="bnav-icon">🏠</span>Home</a>
+  <a href="/people"        class="bnav-item {% if active=='people'        %}active{% endif %}"><span class="bnav-icon">👥</span>People</a>
+  <a href="/projects"      class="bnav-item {% if active=='projects'      %}active{% endif %}"><span class="bnav-icon">📁</span>Projects</a>
+  <a href="/teams"         class="bnav-item {% if active=='teams'         %}active{% endif %}"><span class="bnav-icon">🏷️</span>Teams</a>
+  <a href="/settings"      class="bnav-item {% if active=='settings'      %}active{% endif %}"><span class="bnav-icon">⚙️</span>Settings</a>
+</nav>
+
+<!-- PWA install banner -->
+<div class="pwa-banner hidden" id="pwaBanner">
+  <span style="font-size:1.3rem">🛡️</span>
+  <div style="flex:1">
+    <div style="font-weight:700;font-size:.82rem">Install Nexus</div>
+    <div style="font-size:.7rem;color:var(--text2)">Add to home screen for quick access</div>
+  </div>
+  <button class="btn btn-primary btn-xs" id="pwaInstall">Install</button>
+  <button class="btn btn-ghost btn-xs" onclick="document.getElementById('pwaBanner').classList.add('hidden')">✕</button>
+</div>
+
+<script>
+// apply saved theme/accent immediately
+(function(){
+  try {
+    const s = JSON.parse(localStorage.getItem('nexus_settings')||'{}');
+    if (s.accent_color) document.getElementById('accentStyle').textContent=':root{--accent:'+s.accent_color+'}';
+    if (s.theme==='light') document.body.classList.add('light');
+    else if (s.theme==='system' && window.matchMedia('(prefers-color-scheme: light)').matches) document.body.classList.add('light');
+    if (s.text_size==='large') document.documentElement.style.setProperty('--font-base','17px');
+    if (s.app_name) { const el=document.getElementById('appNameTop'); if(el){el.textContent=s.app_name;document.title=s.app_name;} }
+  } catch(e){}
+})();
+
+// search
+const inp=document.getElementById('globalSearch'), box=document.getElementById('searchResults');
+let timer;
+inp.addEventListener('input',()=>{
+  clearTimeout(timer); const q=inp.value.trim();
+  if(!q){box.classList.remove('open');return;}
+  timer=setTimeout(async()=>{
+    const d=await(await fetch('/api/search?q='+encodeURIComponent(q))).json();
+    if(!d.length){box.innerHTML='<div style="padding:.75rem;color:#64748b;font-size:.78rem;text-align:center">No results</div>';box.classList.add('open');return;}
+    box.innerHTML=d.map(u=>`<div class="search-item" onclick="location.href='/profile/${u.uid}'">
+      <div class="search-dot" style="background:${u.status==='active'?'#34d399':'#f87171'}"></div>
+      <div><div class="search-item-name">${u.name}</div><div class="search-item-role">${u.role}</div></div>
+    </div>`).join('');
+    box.classList.add('open');
+  },220);
+});
+document.addEventListener('click',e=>{if(!e.target.closest('.topbar-search'))box.classList.remove('open');});
+
+// swipe-to-delete
+document.addEventListener('DOMContentLoaded',()=>{
+  document.querySelectorAll('.swipeable').forEach(el=>{
+    let startX=0;
+    el.addEventListener('touchstart',e=>startX=e.touches[0].clientX,{passive:true});
+    el.addEventListener('touchend',e=>{
+      const dx=e.changedTouches[0].clientX-startX;
+      if(dx<-55) el.classList.add('swiped');
+      else if(dx>20) el.classList.remove('swiped');
+    });
+  });
+  document.addEventListener('click',e=>{
+    if(!e.target.closest('.swipeable')) document.querySelectorAll('.swipeable.swiped').forEach(el=>el.classList.remove('swiped'));
+  });
+});
+
+// PWA install
+let deferredPrompt;
+window.addEventListener('beforeinstallprompt',e=>{
+  e.preventDefault(); deferredPrompt=e;
+  document.getElementById('pwaBanner').classList.remove('hidden');
+});
+document.getElementById('pwaInstall')?.addEventListener('click',async()=>{
+  if(!deferredPrompt) return;
+  deferredPrompt.prompt(); await deferredPrompt.userChoice;
+  deferredPrompt=null; document.getElementById('pwaBanner').classList.add('hidden');
+});
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

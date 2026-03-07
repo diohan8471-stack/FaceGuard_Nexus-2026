@@ -1,0 +1,206 @@
+{% extends "base.html" %}
+{% set active = "settings" %}
+{% block title %}Settings{% endblock %}
+{% block content %}
+<div class="page-header anim"><h1>⚙️ Settings</h1><p>Admin controls</p></div>
+
+<!-- backup reminder -->
+{% set last_backup = s.last_backup or 'Never' %}
+<div class="card anim d1" style="margin-bottom:.8rem;border-left:3px solid var(--accent)">
+  <div style="font-weight:700;font-size:.88rem;margin-bottom:.6rem">💾 Backup & Restore</div>
+  <div style="font-size:.78rem;color:var(--text2);margin-bottom:.75rem">Last backup: <strong style="color:var(--text)">{{ last_backup }}</strong></div>
+  <div class="form-group"><label>Backup reminder every (days)</label>
+    <input type="number" id="backupDays" value="{{ s.backup_reminder_days or 7 }}" min="1" max="90">
+  </div>
+  <div style="display:flex;gap:.4rem;flex-wrap:wrap">
+    <a href="/api/settings/export" class="btn btn-primary btn-sm">⬇️ Export Backup</a>
+    <label class="btn btn-ghost btn-sm" style="cursor:pointer">⬆️ Import <input type="file" accept=".json" onchange="importData(event)" style="display:none"></label>
+  </div>
+  <div class="alert" id="importAlert" style="margin-top:.5rem"></div>
+</div>
+
+<!-- app appearance -->
+<div class="card anim d2" style="margin-bottom:.8rem">
+  <div style="font-weight:700;font-size:.88rem;margin-bottom:.75rem">🎨 Appearance</div>
+  <div class="form-group"><label>App Name</label><input id="appName" value="{{ s.app_name }}"></div>
+  <div class="form-group"><label>App Description</label><input id="appDesc" value="{{ s.app_desc }}"></div>
+  <div class="form-group"><label>Accent Color</label>
+    <div style="display:flex;gap:.5rem;align-items:center">
+      <input type="color" id="accentColor" value="{{ s.accent_color }}" style="height:40px;width:60px;border-radius:8px;border:1px solid var(--border2);background:var(--card2);padding:2px">
+      <input id="accentHex" value="{{ s.accent_color }}" style="flex:1;font-family:monospace">
+    </div>
+  </div>
+  <div class="form-group"><label>Theme</label>
+    <select id="themeSelect">
+      <option value="dark"   {% if s.theme=='dark'   %}selected{% endif %}>🌙 Dark</option>
+      <option value="light"  {% if s.theme=='light'  %}selected{% endif %}>☀️ Light</option>
+      <option value="system" {% if s.theme=='system' %}selected{% endif %}>📱 System (Auto)</option>
+    </select>
+  </div>
+  <div class="form-group"><label>Text Size</label>
+    <select id="textSize">
+      <option value="normal" {% if s.text_size=='normal' %}selected{% endif %}>Normal</option>
+      <option value="large"  {% if s.text_size=='large'  %}selected{% endif %}>Large</option>
+    </select>
+  </div>
+</div>
+
+<!-- security -->
+<div class="card anim d3" style="margin-bottom:.8rem">
+  <div style="font-weight:700;font-size:.88rem;margin-bottom:.75rem">🔐 Security</div>
+  <div class="form-group"><label>Face Match Threshold</label>
+    <div style="display:flex;align-items:center;gap:.65rem">
+      <input type="range" id="threshold" min="0.5" max="0.95" step="0.01" value="{{ s.threshold }}" oninput="document.getElementById('thresholdVal').textContent=(this.value*100).toFixed(0)+'%'" style="flex:1">
+      <span id="thresholdVal" class="mono" style="width:40px;text-align:center;flex-shrink:0">{{ (s.threshold*100)|round|int }}%</span>
+    </div>
+  </div>
+  <div class="form-group"><label>Backup PIN (optional)</label><input id="pinInput" type="password" placeholder="Leave blank to keep current…"></div>
+  <div class="form-row">
+    <div class="form-group"><label>Max Login Attempts</label><input type="number" id="maxAttempts" value="{{ s.max_attempts }}" min="1" max="20"></div>
+    <div class="form-group"><label>Lockout Duration (min)</label><input type="number" id="lockoutMins" value="{{ s.lockout_mins }}" min="1" max="60"></div>
+  </div>
+  <div class="form-group"><label>Session Timeout (min)</label><input type="number" id="sessionTimeout" value="{{ s.session_timeout }}" min="5" max="480"></div>
+</div>
+
+<!-- public board -->
+<div class="card anim" style="margin-bottom:.8rem">
+  <div style="font-weight:700;font-size:.88rem;margin-bottom:.6rem">📢 Public Announcement Board</div>
+  <p style="font-size:.76rem;color:var(--text2);margin-bottom:.65rem;line-height:1.5">When enabled, anyone can view announcements at <strong style="color:var(--text)">/board</strong> without logging in.</p>
+  <label style="display:flex;align-items:center;gap:.6rem;cursor:pointer">
+    <input type="checkbox" id="publicBoard" {% if s.public_board %}checked{% endif %} style="width:18px;height:18px;accent-color:var(--accent)">
+    <span style="font-size:.84rem">Enable public announcement board</span>
+  </label>
+  {% if s.public_board %}<a href="/board" target="_blank" class="btn btn-ghost btn-xs" style="margin-top:.6rem">↗ View Public Board</a>{% endif %}
+</div>
+
+<!-- invite links -->
+<div class="card anim" style="margin-bottom:.8rem">
+  <div style="font-weight:700;font-size:.88rem;margin-bottom:.6rem">🔗 Application Invite Links</div>
+  <p style="font-size:.76rem;color:var(--text2);margin-bottom:.75rem;line-height:1.5">Generate shareable links so specific people can submit an application.</p>
+  <div style="display:flex;gap:.4rem;margin-bottom:.75rem">
+    <input id="linkLabel" placeholder="Label (e.g. Grade 11 IT)" style="flex:1">
+    <button class="btn btn-primary btn-sm" onclick="createLink()">+ Generate</button>
+  </div>
+  <div id="linksList">
+  {% if links %}{% for l in links %}
+  <div id="link-{{ l.token }}" style="background:var(--card2);border:1px solid var(--border2);border-radius:11px;padding:.65rem;margin-bottom:.45rem">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.35rem">
+      <span style="font-weight:700;font-size:.82rem">{{ l.label }}</span>
+      <div style="display:flex;gap:.25rem">
+        <button class="btn btn-ghost btn-xs" onclick="toggleLink('{{ l.token }}')">{% if l.active %}⏸ Disable{% else %}▶ Enable{% endif %}</button>
+        <button class="btn btn-danger btn-xs" onclick="deleteLink('{{ l.token }}')">🗑</button>
+      </div>
+    </div>
+    <div style="font-size:.7rem;color:var(--text3);margin-bottom:.35rem">By {{ l.created_by }} · {{ l.created }}</div>
+    <div style="display:flex;align-items:center;gap:.4rem">
+      <input value="{{ request.host_url }}apply?t={{ l.token }}" id="lurl-{{ l.token }}" readonly style="flex:1;font-size:.65rem;font-family:monospace;background:var(--card);border:1px solid var(--border2)">
+      <button class="btn btn-ghost btn-xs" onclick="copyLink('{{ l.token }}')">📋</button>
+    </div>
+    {% if not l.active %}<div style="font-size:.7rem;color:var(--red);margin-top:.3rem">● Disabled</div>{% endif %}
+  </div>
+  {% endfor %}{% else %}<p style="font-size:.78rem;color:var(--text3)">No invite links yet.</p>{% endif %}
+  </div>
+  <div class="alert" id="linkAlert" style="margin-top:.45rem"></div>
+</div>
+
+<!-- save button -->
+<button class="btn btn-primary btn-full anim" onclick="saveAll()">💾 Save All Settings</button>
+<div class="alert" id="saveAlert" style="margin-top:.65rem"></div>
+
+<!-- data management -->
+<div class="card anim" style="margin-top:.85rem;margin-bottom:.85rem">
+  <div style="font-weight:700;font-size:.88rem;margin-bottom:.75rem">🗄️ Data Management</div>
+  <div style="display:flex;flex-direction:column;gap:.4rem">
+    <a href="/history"  class="btn btn-ghost btn-sm" style="justify-content:flex-start">📋 Access Log</a>
+    <a href="/pending"  class="btn btn-ghost btn-sm" style="justify-content:flex-start">🕐 Pending Applications</a>
+    <a href="/audit"    class="btn btn-ghost btn-sm" style="justify-content:flex-start">📜 Audit Trail</a>
+    <button class="btn btn-ghost btn-sm" style="justify-content:flex-start" onclick="if(confirm('Clear all history?'))clearHistory()">🗑 Clear Access History</button>
+    <a href="/logout"   class="btn btn-danger btn-sm" style="justify-content:flex-start">🔓 Logout</a>
+  </div>
+</div>
+
+<!-- system info -->
+<div class="card anim" style="margin-bottom:2rem">
+  <div style="font-weight:700;font-size:.88rem;margin-bottom:.65rem">🖥️ System Info</div>
+  <div class="info-row"><span class="info-label">Version</span><span class="info-value mono">{{ info.version }}</span></div>
+  <div class="info-row"><span class="info-label">Users</span><span class="info-value">{{ info.users }}</span></div>
+  <div class="info-row"><span class="info-label">Pending</span><span class="info-value">{{ info.pending }}</span></div>
+  <div class="info-row"><span class="info-label">Teams</span><span class="info-value">{{ info.teams }}</span></div>
+  <div class="info-row"><span class="info-label">Face Photos</span><span class="info-value">{{ info.face_photos }}</span></div>
+  <div class="info-row"><span class="info-label">History Events</span><span class="info-value">{{ info.history }}</span></div>
+  <div class="info-row"><span class="info-label">Audit Entries</span><span class="info-value">{{ info.audit }}</span></div>
+  <div class="info-row"><span class="info-label">Storage Used</span><span class="info-value mono">{{ info.storage_kb }} KB</span></div>
+  <div class="info-row"><span class="info-label">Started</span><span class="info-value" style="font-size:.74rem">{{ info.started }}</span></div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+document.getElementById('accentColor').addEventListener('input',e=>document.getElementById('accentHex').value=e.target.value);
+document.getElementById('accentHex').addEventListener('input',e=>document.getElementById('accentColor').value=e.target.value);
+
+function showA(id,msg,type){const el=document.getElementById(id);el.className='alert '+type;el.textContent=msg;el.style.display='block';}
+
+async function saveAll(){
+  const pin=document.getElementById('pinInput').value;
+  const payload={
+    app_name:document.getElementById('appName').value,
+    app_desc:document.getElementById('appDesc').value,
+    accent_color:document.getElementById('accentColor').value,
+    theme:document.getElementById('themeSelect').value,
+    text_size:document.getElementById('textSize').value,
+    threshold:parseFloat(document.getElementById('threshold').value),
+    max_attempts:parseInt(document.getElementById('maxAttempts').value),
+    lockout_mins:parseInt(document.getElementById('lockoutMins').value),
+    session_timeout:parseInt(document.getElementById('sessionTimeout').value),
+    backup_reminder_days:parseInt(document.getElementById('backupDays').value),
+    public_board:document.getElementById('publicBoard').checked,
+  };
+  if(pin) payload.pin=pin;
+  const r=await fetch('/api/settings/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+  if((await r.json()).success){
+    // apply to localStorage for immediate effect
+    const existing=JSON.parse(localStorage.getItem('nexus_settings')||'{}');
+    Object.assign(existing,{accent_color:payload.accent_color,theme:payload.theme,text_size:payload.text_size,app_name:payload.app_name});
+    localStorage.setItem('nexus_settings',JSON.stringify(existing));
+    showA('saveAlert','✅ Settings saved! Refreshing…','ok');
+    setTimeout(()=>location.reload(),900);
+  } else showA('saveAlert','Error saving.','err');
+}
+
+async function clearHistory(){
+  await fetch('/api/settings/clear_history',{method:'POST'});
+  showA('saveAlert','✅ History cleared.','ok');
+}
+
+async function importData(e){
+  const file=e.target.files[0]; if(!file) return;
+  const text=await file.text();
+  try {
+    const data=JSON.parse(text);
+    const r=await fetch('/api/settings/import',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+    if((await r.json()).success){showA('importAlert','✅ Imported! Refreshing…','ok');setTimeout(()=>location.reload(),900);}
+    else showA('importAlert','Import failed.','err');
+  } catch(err){showA('importAlert','Invalid JSON file.','err');}
+}
+
+async function createLink(){
+  const label=document.getElementById('linkLabel').value.trim()||'Invite Link';
+  const r=await fetch('/api/invite/create',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({label})});
+  const d=await r.json();
+  if(d.success){showA('linkAlert','✅ Link created!','ok');setTimeout(()=>location.reload(),700);}
+  else showA('linkAlert','Error.','err');
+}
+async function toggleLink(token){
+  await fetch('/api/invite/toggle/'+token,{method:'POST'}); location.reload();
+}
+async function deleteLink(token){
+  if(!confirm('Delete this invite link?'))return;
+  await fetch('/api/invite/delete/'+token,{method:'DELETE'});
+  document.getElementById('link-'+token)?.remove();
+}
+function copyLink(token){
+  const inp=document.getElementById('lurl-'+token); inp.select(); document.execCommand('copy');
+  showA('linkAlert','📋 Link copied!','ok');
+}
+</script>
+{% endblock %}

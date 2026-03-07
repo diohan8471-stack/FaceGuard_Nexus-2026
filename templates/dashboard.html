@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+{% set active = "dashboard" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+
+<div class="page-header anim">
+  <h1>👋 Welcome, {{ user.name.split()[0] }}!</h1>
+  <p>{{ user.role }}{% if me.is_admin %} · 👑 Admin{% endif %}</p>
+</div>
+
+{% if backup_due %}
+<div style="background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.3);border-radius:12px;padding:.7rem .9rem;margin-bottom:.75rem;display:flex;align-items:center;gap:.6rem" class="anim">
+  <span>💾</span>
+  <div style="flex:1;font-size:.78rem;color:var(--amber)">Backup reminder — it's been a while since your last backup.</div>
+  <a href="/api/settings/export" class="btn btn-amber btn-xs">Export</a>
+</div>
+{% endif %}
+
+{% if pend_count > 0 %}
+<a href="/pending" style="display:flex;align-items:center;gap:.65rem;background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.35);border-radius:13px;padding:.75rem 1rem;margin-bottom:.75rem;text-decoration:none" class="anim">
+  <span style="font-size:1.3rem">🕐</span>
+  <div style="flex:1">
+    <div style="font-weight:700;font-size:.88rem;color:var(--amber)">{{ pend_count }} Pending Application{{ 's' if pend_count>1 else '' }}</div>
+    <div style="font-size:.72rem;color:var(--text2)">Tap to review</div>
+  </div>
+  <span style="color:var(--amber)">→</span>
+</a>
+{% endif %}
+
+<!-- stats -->
+<div class="stat-grid anim d1">
+  <div class="stat-card"><div class="stat-icon">👥</div><div><div class="stat-val">{{ total_users }}</div><div class="stat-lbl">People</div></div></div>
+  <div class="stat-card"><div class="stat-icon">✅</div><div><div class="stat-val">{{ granted_today }}</div><div class="stat-lbl">Logins Today</div></div></div>
+  <div class="stat-card"><div class="stat-icon">📁</div><div><div class="stat-val">{{ total_projects }}</div><div class="stat-lbl">Projects</div></div></div>
+  <div class="stat-card"><div class="stat-icon">📋</div><div><div class="stat-val">{{ total_events }}</div><div class="stat-lbl">Events</div></div></div>
+</div>
+
+<!-- 7-day chart -->
+<div class="card anim d2" style="margin-bottom:.85rem">
+  <div class="section-hdr" style="margin-bottom:.75rem"><span class="section-title">📊 Access Events (7 Days)</span></div>
+  {% set max_val = chart_data.values()|max if chart_data.values()|list|length > 0 else 1 %}
+  {% for day, val in chart_data.items() %}
+  <div class="chart-bar-row">
+    <span class="chart-bar-label">{{ day }}</span>
+    <div class="chart-bar-bg">
+      <div class="chart-bar-fill" style="width:{{ ((val / [max_val,1]|max) * 100)|round }}%;background:linear-gradient(90deg,#4f46e5,#38bdf8)"></div>
+    </div>
+    <span class="chart-bar-val">{{ val }}</span>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- quick actions -->
+<div style="display:flex;gap:.5rem;margin-bottom:.85rem" class="anim d2">
+  <a href="/apply" class="btn btn-ghost btn-sm" style="flex:1;flex-direction:column;gap:2px;padding:.6rem .4rem;font-size:.65rem"><span style="font-size:1.1rem">📝</span>Apply</a>
+  <a href="/register" class="btn btn-ghost btn-sm" style="flex:1;flex-direction:column;gap:2px;padding:.6rem .4rem;font-size:.65rem"><span style="font-size:1.1rem">➕</span>Add Person</a>
+  <a href="/announcements" class="btn btn-ghost btn-sm" style="flex:1;flex-direction:column;gap:2px;padding:.6rem .4rem;font-size:.65rem"><span style="font-size:1.1rem">📢</span>Post</a>
+  <a href="/login" class="btn btn-ghost btn-sm" style="flex:1;flex-direction:column;gap:2px;padding:.6rem .4rem;font-size:.65rem"><span style="font-size:1.1rem">🔍</span>Scan</a>
+</div>
+
+<!-- my profile -->
+<div class="card anim d3" style="margin-bottom:.85rem;overflow:hidden;padding:0">
+  {% if user.cover_photo %}
+    <img src="{{ user.cover_photo }}" class="cover-photo" alt="">
+  {% else %}
+    <div class="cover-placeholder"></div>
+  {% endif %}
+  <div style="padding:.9rem">
+    <div class="profile-hero" style="padding:.25rem 0 .5rem">
+      {% if user.photo %}<img src="{{ user.photo }}" class="profile-photo" style="margin-top:-50px;border:3px solid var(--card)" alt="">
+      {% else %}<div class="profile-photo-ph" style="margin-top:-50px;border:3px solid var(--card)">👤</div>{% endif %}
+      <div class="profile-name">{{ user.name }}</div>
+      <div style="display:flex;gap:.35rem;flex-wrap:wrap;justify-content:center;margin-top:.3rem">
+        <span class="badge badge-blue">{{ user.role }}</span>
+        {% if user.role_type=='admin' %}<span class="badge badge-purple">👑 Admin</span>{% endif %}
+      </div>
+    </div>
+    {% set pct = user.completion if user.completion is defined else 0 %}
+    <div class="progress-wrap" style="margin:.5rem 0">
+      <div class="progress-label"><span>Profile Completion</span>
+        <span style="color:{% if pct>=80 %}var(--green){% elif pct>=50 %}var(--amber){% else %}var(--red){% endif %}">{{ pct }}%</span>
+      </div>
+      <div class="progress-bg"><div class="progress-fill" style="width:{{ pct }}%;background:{% if pct>=80 %}linear-gradient(90deg,#059669,#34d399){% elif pct>=50 %}linear-gradient(90deg,#d97706,#fbbf24){% else %}linear-gradient(90deg,#b91c1c,#f87171){% endif %}"></div></div>
+    </div>
+    <a href="/profile/{{ user.uid }}" class="btn btn-ghost btn-full btn-sm">View My Profile →</a>
+  </div>
+</div>
+
+<!-- recent access -->
+<div class="card anim d4" style="margin-bottom:.85rem">
+  <div class="section-hdr"><span class="section-title">📋 Recent Access</span><a href="/history" class="btn btn-ghost btn-xs">All</a></div>
+  {% if history %}{% for e in history %}
+  <div class="log-row">
+    <div style="flex:1;min-width:0"><div class="log-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ e.name }}</div><div class="log-time">{{ e.time }}</div></div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;flex-shrink:0">
+      {% if e.status=='Access Granted' %}<span class="badge badge-green" style="font-size:.58rem">✅ Granted</span>
+      {% elif e.status=='Access Denied' %}<span class="badge badge-red" style="font-size:.58rem">🚫 Denied</span>
+      {% elif 'Approved' in e.status or 'Registered' in e.status %}<span class="badge badge-purple" style="font-size:.58rem">✅ Reg</span>
+      {% elif e.status=='Applied' %}<span class="badge badge-amber" style="font-size:.58rem">🕐 Applied</span>
+      {% elif e.status=='PIN Login' %}<span class="badge badge-amber" style="font-size:.58rem">🔢 PIN</span>
+      {% else %}<span class="badge badge-gray" style="font-size:.58rem">{{ e.status }}</span>{% endif %}
+      {% if e.score is not none %}<span class="mono" style="font-size:.65rem;color:var(--text3)">{{ e.score }}%</span>{% endif %}
+    </div>
+  </div>
+  {% endfor %}{% else %}<p class="text-muted text-sm">No events yet.</p>{% endif %}
+</div>
+
+<!-- announcements -->
+<div class="card anim" style="margin-bottom:.85rem">
+  <div class="section-hdr"><span class="section-title">📢 Announcements</span><a href="/announcements" class="btn btn-ghost btn-xs">Manage</a></div>
+  {% if announcements %}{% for a in announcements %}
+  <div style="padding:.6rem 0;border-bottom:1px solid var(--border2)" id="ann-{{ a.id }}">
+    <div style="display:flex;align-items:center;gap:.35rem;flex-wrap:wrap;margin-bottom:.22rem">
+      {% if a.pin %}<span class="badge badge-amber" style="font-size:.58rem">📌</span>{% endif %}
+      <span class="badge badge-gray" style="font-size:.58rem">{{ a.category or 'General' }}</span>
+      <span style="font-weight:700;font-size:.86rem">{{ a.title }}</span>
+    </div>
+    <div style="color:var(--text2);font-size:.77rem;line-height:1.5">{{ a.body[:90] }}{% if a.body|length>90 %}…{% endif %}</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:.28rem">
+      <span style="font-size:.65rem;color:var(--text3)">{{ a.date }} · {{ a.author }}</span>
+      <button class="btn btn-ghost btn-xs" style="font-size:.6rem" onclick="markRead({{ a.id }})">Mark Read</button>
+    </div>
+  </div>
+  {% endfor %}{% else %}<p class="text-muted text-sm">No announcements.</p>{% endif %}
+</div>
+
+<!-- activity feed -->
+{% if activity %}
+<div class="card anim">
+  <div class="section-hdr"><span class="section-title">⚡ Recent Activity</span><a href="/audit" class="btn btn-ghost btn-xs">Full Log</a></div>
+  {% for e in activity %}
+  <div style="padding:.45rem 0;border-bottom:1px solid var(--border2);display:flex;align-items:flex-start;gap:.5rem">
+    <span style="font-size:.85rem;flex-shrink:0">
+      {% if 'Login' in e.action %}🔐{% elif 'Approved' in e.action %}✅{% elif 'Rejected' in e.action or 'Deleted' in e.action %}❌{% elif 'Updated' in e.action %}✏️{% elif 'Posted' in e.action %}📢{% elif 'Applied' in e.action %}🕐{% elif 'Team' in e.action %}🏷️{% else %}📋{% endif %}
+    </span>
+    <div style="flex:1;min-width:0">
+      <div style="font-size:.78rem;font-weight:600">{{ e.action }}{% if e.target %} <span style="color:var(--text2);font-weight:400">— {{ e.target }}</span>{% endif %}</div>
+      <div style="font-size:.65rem;color:var(--text3)">{{ e.by }} · {{ e.time }}</div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% endblock %}
+{% block scripts %}
+<script>
+async function markRead(id){
+  await fetch('/api/announce/read/'+id,{method:'POST'});
+  const el=document.getElementById('ann-'+id);
+  if(el){el.style.transition='all .3s';el.style.opacity='.4';}
+}
+</script>
+{% endblock %}

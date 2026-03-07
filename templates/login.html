@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>{{ app_name }} — Login</title>
+<link rel="stylesheet" href="/static/style.css">
+<style>
+body{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:1rem;padding-bottom:1rem;}
+body::before{content:'';position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse 55% 45% at 15% 15%,rgba(79,70,229,.14),transparent),radial-gradient(ellipse 45% 40% at 85% 85%,rgba(56,189,248,.1),transparent);}
+.wrap{width:100%;max-width:390px;z-index:1;}
+.logo-wrap{text-align:center;margin-bottom:1.4rem;}
+.logo{display:inline-flex;align-items:center;justify-content:center;width:58px;height:58px;border-radius:16px;font-size:1.6rem;background:linear-gradient(135deg,#4f46e5,#38bdf8);box-shadow:0 0 32px rgba(56,189,248,.3);margin-bottom:.7rem;animation:pulse 2.5s ease-in-out infinite;}
+@keyframes pulse{0%,100%{box-shadow:0 0 28px rgba(56,189,248,.22);}50%{box-shadow:0 0 52px rgba(56,189,248,.52);}}
+.logo-wrap h1{font-size:1.5rem;font-weight:800;background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.logo-wrap p{color:var(--text2);font-size:.79rem;margin-top:.2rem;}
+.cam-wrap{position:relative;border-radius:14px;overflow:hidden;background:#000;aspect-ratio:4/3;margin-bottom:.8rem;border:1px solid var(--border2);}
+#video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);display:block;}
+#overlay{position:absolute;inset:0;pointer-events:none;}
+.scan-line{position:absolute;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--accent),transparent);top:0;opacity:0;}
+.scan-line.on{opacity:1;animation:scan 1.8s linear infinite;}
+@keyframes scan{0%{top:0}100%{top:100%}}
+.cam-lbl{position:absolute;bottom:7px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.72);backdrop-filter:blur(6px);border:1px solid var(--border2);border-radius:99px;padding:3px 13px;font-size:.64rem;font-weight:600;letter-spacing:.07em;text-transform:uppercase;white-space:nowrap;transition:color .3s;}
+.match-wrap{display:none;margin-bottom:.75rem;}
+.match-row{display:flex;justify-content:space-between;margin-bottom:.28rem;}
+.match-bg{height:6px;background:rgba(255,255,255,.07);border-radius:99px;overflow:hidden;}
+.match-fill{height:100%;border-radius:99px;transition:width .5s,background .4s;}
+/* PIN modal */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(6px);z-index:400;align-items:center;justify-content:center;padding:1rem;}
+.modal-bg.open{display:flex;}
+.modal{background:var(--card);border:1px solid var(--border2);border-radius:18px;padding:1.4rem;width:100%;max-width:320px;}
+.pin-display{font-size:2rem;letter-spacing:.5rem;text-align:center;height:48px;margin:1rem 0;color:var(--accent);font-family:'JetBrains Mono',monospace;}
+.pin-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.45rem;}
+.pin-btn{background:var(--card2);border:1px solid var(--border2);border-radius:12px;padding:.8rem;font-size:1.1rem;font-weight:700;color:var(--text);transition:all .15s;}
+.pin-btn:active{background:rgba(56,189,248,.15);transform:scale(.95);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="logo-wrap">
+    <div class="logo">🛡️</div>
+    <h1>{{ app_name }}</h1>
+    <p>{{ app_desc }}</p>
+  </div>
+
+  {% if timeout %}
+  <div class="alert warn" style="display:block;margin-bottom:.8rem">⏱ Session expired. Please log in again.</div>
+  {% endif %}
+
+  <div class="card">
+    <div class="cam-wrap">
+      <video id="video" autoplay playsinline muted></video>
+      <canvas id="overlay"></canvas>
+      <div class="scan-line" id="scanLine"></div>
+      <div class="cam-lbl" id="camLbl" style="color:var(--accent)">● Initialising…</div>
+    </div>
+
+    <div class="match-wrap" id="matchWrap">
+      <div class="match-row">
+        <span style="font-size:.7rem;color:var(--text2);font-weight:600;text-transform:uppercase;letter-spacing:.06em">Face Match</span>
+        <span style="font-size:.82rem;font-weight:800" id="matchPct">0%</span>
+      </div>
+      <div class="match-bg"><div class="match-fill" id="matchFill" style="width:0%"></div></div>
+    </div>
+
+    <button class="btn btn-primary btn-full" id="btnScan" onclick="startScan()">🔍 &nbsp;Start Face Scan</button>
+
+    {% if has_pin %}
+    <button class="btn btn-ghost btn-full btn-sm" style="margin-top:.5rem" onclick="openPin()">🔢 &nbsp;Use PIN Instead</button>
+    {% endif %}
+
+    <div class="alert" id="alert" style="margin-top:.65rem"></div>
+  </div>
+
+  {% if first_run %}
+  <div style="background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.3);border-radius:12px;padding:.85rem 1rem;margin-top:.85rem;text-align:center">
+    <div style="font-size:.84rem;font-weight:700;color:var(--amber);margin-bottom:.25rem">👋 First Time Setup</div>
+    <div style="font-size:.76rem;color:var(--text2);margin-bottom:.65rem">No users registered yet.</div>
+    <a href="/register" class="btn btn-primary btn-sm" style="display:inline-flex">➕ Register as Admin</a>
+  </div>
+  {% else %}
+  <p style="text-align:center;margin-top:.85rem;font-size:.74rem;color:var(--text3)">Contact your administrator for access.</p>
+  {% endif %}
+</div>
+
+<!-- PIN modal -->
+<div class="modal-bg" id="pinModal">
+  <div class="modal">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem">
+      <span style="font-weight:700">🔢 Enter PIN</span>
+      <button class="btn btn-ghost btn-xs" onclick="closePin()">✕</button>
+    </div>
+    <div class="pin-display" id="pinDisplay">_ _ _ _</div>
+    <div class="pin-grid">
+      <button class="pin-btn" onclick="pinKey('1')">1</button>
+      <button class="pin-btn" onclick="pinKey('2')">2</button>
+      <button class="pin-btn" onclick="pinKey('3')">3</button>
+      <button class="pin-btn" onclick="pinKey('4')">4</button>
+      <button class="pin-btn" onclick="pinKey('5')">5</button>
+      <button class="pin-btn" onclick="pinKey('6')">6</button>
+      <button class="pin-btn" onclick="pinKey('7')">7</button>
+      <button class="pin-btn" onclick="pinKey('8')">8</button>
+      <button class="pin-btn" onclick="pinKey('9')">9</button>
+      <button class="pin-btn" onclick="pinKey('C')" style="color:var(--red)">✕</button>
+      <button class="pin-btn" onclick="pinKey('0')">0</button>
+      <button class="pin-btn" onclick="pinKey('OK')" style="color:var(--green)">✓</button>
+    </div>
+    <div class="alert" id="pinAlert" style="margin-top:.6rem"></div>
+  </div>
+</div>
+
+<script>
+const video=document.getElementById('video'),canvas=document.getElementById('overlay'),ctx=canvas.getContext('2d');
+const scanLine=document.getElementById('scanLine'),camLbl=document.getElementById('camLbl');
+const btnScan=document.getElementById('btnScan'),alertEl=document.getElementById('alert');
+const matchWrap=document.getElementById('matchWrap'),matchPct=document.getElementById('matchPct'),matchFill=document.getElementById('matchFill');
+let busy=false;
+
+navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:{ideal:640},height:{ideal:480}}})
+  .then(s=>{video.srcObject=s;video.onloadedmetadata=()=>{camLbl.textContent='● LIVE';camLbl.style.color='var(--green)';requestAnimationFrame(loop);};})
+  .catch(()=>show('Camera access denied.','err'));
+
+function loop(){
+  canvas.width=video.offsetWidth;canvas.height=video.offsetHeight;
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  const cx=canvas.width/2,cy=canvas.height/2,rx=canvas.width*.27,ry=canvas.height*.37;
+  ctx.beginPath();ctx.ellipse(cx,cy,rx,ry,0,0,Math.PI*2);
+  ctx.strokeStyle=busy?'rgba(56,189,248,.95)':'rgba(56,189,248,.38)';
+  ctx.lineWidth=2.5;ctx.setLineDash(busy?[]:[7,5]);ctx.stroke();ctx.setLineDash([]);
+  requestAnimationFrame(loop);
+}
+function snap(){const c=document.createElement('canvas');c.width=video.videoWidth||640;c.height=video.videoHeight||480;const x=c.getContext('2d');x.translate(c.width,0);x.scale(-1,1);x.drawImage(video,0,0);return c.toDataURL('image/jpeg',.87);}
+function show(msg,type){alertEl.className='alert '+type;alertEl.textContent=msg;alertEl.style.display='block';}
+function showMatch(pct){matchWrap.style.display='block';matchPct.textContent=pct+'%';matchFill.style.width=Math.min(pct,100)+'%';matchFill.style.background=pct>=78?'linear-gradient(90deg,#059669,#34d399)':pct>=50?'linear-gradient(90deg,#d97706,#fbbf24)':'linear-gradient(90deg,#b91c1c,#f87171)';}
+function w(ms){return new Promise(r=>setTimeout(r,ms));}
+function reset(){scanLine.classList.remove('on');btnScan.disabled=false;btnScan.innerHTML='🔍 &nbsp;Start Face Scan';busy=false;}
+async function startScan(){
+  if(busy)return;busy=true;btnScan.disabled=true;btnScan.textContent='⏳ Scanning…';scanLine.classList.add('on');
+  show('Hold still…','inf');await w(1800);
+  try{
+    const res=await fetch('/api/recognize',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({image:snap()})});
+    const d=await res.json();
+    showMatch(d.score||0);
+    if(d.success){show('✅ '+d.message+' ('+d.score+'%)','ok');setTimeout(()=>location.href='/dashboard',1300);}
+    else{show('❌ '+d.message,'err');if(d.locked)btnScan.disabled=true;else reset();}
+  }catch(e){show('⚠️ Server error.','err');reset();}
+}
+
+// PIN
+let pinVal='';
+function openPin(){document.getElementById('pinModal').classList.add('open');pinVal='';updatePinDisplay();}
+function closePin(){document.getElementById('pinModal').classList.remove('open');}
+function updatePinDisplay(){const d=document.getElementById('pinDisplay');d.textContent=pinVal.replace(/./g,'●').padEnd(4,'_').split('').join(' ');}
+async function pinKey(k){
+  if(k==='C'){pinVal='';updatePinDisplay();return;}
+  if(k==='OK'){
+    const r=await fetch('/api/pin_login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:pinVal})});
+    const d=await r.json();
+    const al=document.getElementById('pinAlert');
+    if(d.success){al.className='alert ok';al.textContent='✅ '+d.message;al.style.display='block';setTimeout(()=>location.href='/dashboard',1000);}
+    else{al.className='alert err';al.textContent='❌ '+d.message;al.style.display='block';pinVal='';updatePinDisplay();}
+    return;
+  }
+  if(pinVal.length<6){pinVal+=k;updatePinDisplay();}
+}
+</script>
+</body>
+</html>

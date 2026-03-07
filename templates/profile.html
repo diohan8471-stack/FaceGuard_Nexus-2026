@@ -1,0 +1,389 @@
+{% extends "base.html" %}
+{% set active = "people" %}
+{% block title %}{{ user.name }}{% endblock %}
+{% block content %}
+
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.8rem" class="anim">
+  <a href="/people" class="btn btn-ghost btn-sm">← Back</a>
+  <div style="display:flex;gap:.4rem">
+    <button class="btn btn-ghost btn-sm" onclick="toggleEdit()">✏️ Edit</button>
+    {% if me.is_admin %}<button class="btn btn-danger btn-sm" onclick="delUser('{{ user.uid }}','{{ user.name }}')">🗑</button>{% endif %}
+  </div>
+</div>
+
+<!-- hero card with cover photo -->
+<div class="card anim" style="margin-bottom:.8rem;overflow:hidden;padding:0">
+  {% if user.cover_photo %}
+    <img src="{{ user.cover_photo }}" class="cover-photo" alt="">
+  {% else %}
+    <div class="cover-placeholder"></div>
+  {% endif %}
+  <div style="padding:.9rem">
+    <div class="profile-hero" style="padding:.2rem 0 .5rem">
+      {% if user.photo %}<img src="{{ user.photo }}" class="profile-photo" style="margin-top:-48px;border:3px solid var(--card)" id="profilePhoto" alt="">
+      {% else %}<div class="profile-photo-ph" style="margin-top:-48px;border:3px solid var(--card)" id="profilePhoto">👤</div>{% endif %}
+      <div class="profile-name">{{ user.name }}</div>
+      <div style="display:flex;gap:.35rem;flex-wrap:wrap;justify-content:center;margin-top:.35rem">
+        <span class="badge badge-blue">{{ user.role }}</span>
+        {% if user.status=='active' %}<span class="badge badge-green">● Active</span>{% else %}<span class="badge badge-red">● Inactive</span>{% endif %}
+        {% if user.role_type=='admin' %}<span class="badge badge-purple">👑 Admin</span>{% endif %}
+      </div>
+      {% if teams %}<div style="display:flex;flex-wrap:wrap;gap:.28rem;justify-content:center;margin-top:.4rem">{% for t in teams %}<span class="badge" style="background:rgba(56,189,248,.1);border-color:rgba(56,189,248,.3);color:var(--accent);font-size:.6rem">🏷️ {{ t.name }}</span>{% endfor %}</div>{% endif %}
+      {% if user.tags %}<div style="display:flex;flex-wrap:wrap;gap:.28rem;justify-content:center;margin-top:.35rem">{% for t in user.tags %}<span class="badge badge-purple" style="font-size:.6rem">{{ t }}</span>{% endfor %}</div>{% endif %}
+      {% if user.description %}<p class="profile-desc">{{ user.description }}</p>{% endif %}
+    </div>
+
+    <!-- social links -->
+    {% if user.social_links %}
+    <div style="display:flex;gap:.4rem;flex-wrap:wrap;justify-content:center;margin-bottom:.7rem">
+      {% for sl in user.social_links %}
+      <a href="{{ sl.url }}" target="_blank" class="btn btn-ghost btn-xs">{{ sl.icon or '🔗' }} {{ sl.label }}</a>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- profile completion -->
+    {% set pct = user.completion if user.completion is defined else 0 %}
+    <div class="progress-wrap" style="margin:.3rem 0 .65rem">
+      <div class="progress-label"><span>Profile Completion</span><span style="color:{% if pct>=80 %}var(--green){% elif pct>=50 %}var(--amber){% else %}var(--red){% endif %}">{{ pct }}%</span></div>
+      <div class="progress-bg"><div class="progress-fill" style="width:{{ pct }}%;background:{% if pct>=80 %}linear-gradient(90deg,#059669,#34d399){% elif pct>=50 %}linear-gradient(90deg,#d97706,#fbbf24){% else %}linear-gradient(90deg,#b91c1c,#f87171){% endif %}"></div></div>
+    </div>
+
+    <div style="display:flex;gap:.4rem">
+      <button class="btn btn-ghost btn-full btn-sm" onclick="toggleRetake()">📸 Update Photos</button>
+      <button class="btn btn-ghost btn-sm" onclick="showQR()">🔗 QR</button>
+      <button class="btn btn-ghost btn-sm" onclick="showIDCard()">🪪 ID</button>
+    </div>
+  </div>
+</div>
+
+<!-- QR modal -->
+<div id="qrModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:400;align-items:center;justify-content:center;padding:1rem">
+  <div style="background:var(--card);border:1px solid var(--border2);border-radius:18px;padding:1.4rem;max-width:300px;width:100%;text-align:center">
+    <div style="font-weight:700;margin-bottom:.75rem">🔗 Profile QR Code</div>
+    <div class="qr-wrap" id="qrContainer" style="margin:0 auto .85rem"></div>
+    <p style="font-size:.75rem;color:var(--text2);margin-bottom:.85rem">Scan to open {{ user.name }}'s profile</p>
+    <button class="btn btn-ghost btn-full btn-sm" onclick="document.getElementById('qrModal').style.display='none'">Close</button>
+  </div>
+</div>
+
+<!-- ID card modal -->
+<div id="idModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:400;align-items:center;justify-content:center;padding:1rem">
+  <div style="max-width:340px;width:100%">
+    <div class="id-card" id="idCard">
+      <div style="display:flex;align-items:flex-start;gap:.75rem;margin-bottom:.85rem">
+        {% if user.photo %}<img src="{{ user.photo }}" style="width:64px;height:64px;border-radius:14px;object-fit:cover;border:2px solid rgba(56,189,248,.3);flex-shrink:0">
+        {% else %}<div style="width:64px;height:64px;border-radius:14px;background:linear-gradient(135deg,#4f46e5,#38bdf8);display:flex;align-items:center;justify-content:center;font-size:1.6rem;flex-shrink:0">👤</div>{% endif %}
+        <div style="flex:1;min-width:0">
+          <div style="font-size:.58rem;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.1em;margin-bottom:.15rem">{{ s.app_name if s else 'Nexus' }}</div>
+          <div style="font-weight:800;font-size:1.05rem;line-height:1.2">{{ user.name }}</div>
+          <div style="font-size:.74rem;color:var(--text2);margin-top:.18rem">{{ user.role }}</div>
+          {% if user.role_type=='admin' %}<span class="badge badge-purple" style="margin-top:.3rem;font-size:.58rem;display:inline-flex">👑 Admin</span>{% endif %}
+        </div>
+      </div>
+      {% if user.email or user.phone %}<div style="font-size:.72rem;color:var(--text2);margin-bottom:.3rem">{% if user.email %}✉️ {{ user.email }}<br>{% endif %}{% if user.phone %}📞 {{ user.phone }}{% endif %}</div>{% endif %}
+      <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:.65rem">
+        <div style="font-size:.65rem;color:var(--text3)">Since {{ user.registered[:10] if user.registered else '—' }}</div>
+        <div style="font-size:.9rem;opacity:.4">🛡️</div>
+      </div>
+    </div>
+    <button class="btn btn-ghost btn-full btn-sm" style="margin-top:.65rem" onclick="document.getElementById('idModal').style.display='none'">Close</button>
+  </div>
+</div>
+
+<!-- retake photos -->
+<div class="card anim" id="retakeSection" style="display:none;margin-bottom:.8rem">
+  <div class="section-hdr"><span class="section-title">📸 Update Face Photos</span></div>
+  <div style="position:relative;border-radius:12px;overflow:hidden;background:#000;aspect-ratio:4/3;margin-bottom:.65rem;border:1px solid var(--border2)">
+    <video id="retakeVideo" autoplay playsinline muted style="width:100%;height:100%;object-fit:cover;transform:scaleX(-1)"></video>
+    <canvas id="retakeCanvas" style="position:absolute;inset:0;pointer-events:none"></canvas>
+  </div>
+  <div style="display:flex;gap:.35rem;margin-bottom:.6rem;justify-content:center">
+    {% for i in range(5) %}<div id="rs{{ i }}" style="width:48px;height:48px;border-radius:9px;background:var(--card2);border:2px dashed var(--border2);display:flex;align-items:center;justify-content:center;font-size:.75rem;color:var(--text3);overflow:hidden;flex-shrink:0">{{ i+1 }}</div>{% endfor %}
+  </div>
+  <div style="display:flex;gap:.45rem">
+    <button class="btn btn-primary btn-sm" style="flex:1" id="btnRetake" onclick="retakeCapture()">📸 Capture</button>
+    <button class="btn btn-ghost btn-sm" onclick="resetRetake()">↩ Reset</button>
+    <button class="btn btn-success btn-sm" style="flex:1" id="btnSavePhotos" onclick="saveRetake()" disabled>💾 Save</button>
+  </div>
+  <div class="alert" id="retakeAlert" style="margin-top:.5rem"></div>
+</div>
+
+<!-- contact info -->
+<div class="card anim d1" style="margin-bottom:.8rem">
+  <div class="section-hdr" style="margin-bottom:.6rem"><span class="section-title">📇 Contact Info</span></div>
+  <div class="info-row"><span class="info-label">Email</span>
+    <span class="info-value">{% if user.email %}<a href="mailto:{{ user.email }}" style="color:var(--accent)">{{ user.email }}</a>{% else %}—{% endif %}</span>
+  </div>
+  <div class="info-row"><span class="info-label">Phone</span>
+    <span class="info-value">{% if user.phone %}<a href="tel:{{ user.phone }}" style="color:var(--accent)">{{ user.phone }}</a>{% else %}—{% endif %}</span>
+  </div>
+  <div class="info-row"><span class="info-label">Address</span><span class="info-value">{{ user.address or '—' }}</span></div>
+  <div class="info-row"><span class="info-label">Birthday</span><span class="info-value">{{ user.birthday or '—' }}</span></div>
+  <div class="info-row"><span class="info-label">Since</span><span class="info-value" style="font-size:.74rem">{{ user.registered or '—' }}</span></div>
+  {% if user.custom_fields %}{% for cf in user.custom_fields %}
+  <div class="info-row"><span class="info-label">{{ cf.label }}</span><span class="info-value">{{ cf.value }}</span></div>
+  {% endfor %}{% endif %}
+</div>
+
+<!-- projects -->
+<div class="card anim d2" style="margin-bottom:.8rem">
+  <div class="section-hdr">
+    <span class="section-title">📁 Projects ({{ user.projects|length if user.projects else 0 }})</span>
+    <button class="btn btn-primary btn-xs" onclick="toggleProjForm()">+ Assign</button>
+  </div>
+  <div id="projForm" style="display:none;background:var(--card2);border:1px solid var(--border2);border-radius:11px;padding:.8rem;margin-bottom:.8rem">
+    <div class="form-group"><label>Title *</label><input id="pTitle" placeholder="Project title…"></div>
+    <div class="form-group"><label>Description</label><textarea id="pDesc" style="min-height:52px"></textarea></div>
+    <div class="form-row">
+      <div class="form-group"><label>Status</label><select id="pStatus"><option value="ongoing">Ongoing</option><option value="pending">Pending</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option></select></div>
+      <div class="form-group"><label>Priority</label><select id="pPriority"><option value="medium">Medium</option><option value="low">Low</option><option value="high">High</option><option value="urgent">Urgent</option></select></div>
+    </div>
+    <div class="form-group"><label>Progress <span id="progressLabel">0%</span></label><input type="range" id="pProgress" min="0" max="100" value="0" oninput="document.getElementById('progressLabel').textContent=this.value+'%'" style="width:100%;margin-top:.3rem"></div>
+    <div class="form-group"><label>Due Date</label><input id="pDue" type="date"></div>
+    <div style="display:flex;gap:.45rem"><button class="btn btn-success btn-sm" onclick="addProject()">✅ Assign</button><button class="btn btn-ghost btn-sm" onclick="toggleProjForm()">Cancel</button></div>
+    <div class="alert" id="projAlert" style="margin-top:.45rem"></div>
+  </div>
+  <div id="editProjForm" style="display:none;background:var(--card2);border:1px solid rgba(56,189,248,.25);border-radius:11px;padding:.8rem;margin-bottom:.8rem">
+    <div style="font-weight:700;font-size:.82rem;margin-bottom:.55rem;color:var(--accent)">✏️ Edit Project</div>
+    <input type="hidden" id="editProjId">
+    <div class="form-group"><label>Title</label><input id="epTitle"></div>
+    <div class="form-group"><label>Description</label><textarea id="epDesc" style="min-height:50px"></textarea></div>
+    <div class="form-row">
+      <div class="form-group"><label>Status</label><select id="epStatus"><option value="ongoing">Ongoing</option><option value="pending">Pending</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option></select></div>
+      <div class="form-group"><label>Priority</label><select id="epPriority"><option value="medium">Medium</option><option value="low">Low</option><option value="high">High</option><option value="urgent">Urgent</option></select></div>
+    </div>
+    <div class="form-group"><label>Progress <span id="epProgressLabel">0%</span></label><input type="range" id="epProgress" min="0" max="100" value="0" oninput="document.getElementById('epProgressLabel').textContent=this.value+'%'" style="width:100%;margin-top:.3rem"></div>
+    <div class="form-group"><label>Due Date</label><input id="epDue" type="date"></div>
+    <div style="display:flex;gap:.45rem"><button class="btn btn-success btn-sm" onclick="saveEditProject()">💾 Save</button><button class="btn btn-ghost btn-sm" onclick="document.getElementById('editProjForm').style.display='none'">Cancel</button></div>
+  </div>
+  <div id="projList">
+    {% if user.projects %}{% for p in user.projects %}
+    <div class="proj-card prio-{{ p.priority or 'medium' }}" id="proj-{{ p.id }}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.28rem">
+        <div class="proj-title">{{ p.title }}</div>
+        <div style="display:flex;gap:.22rem;flex-shrink:0">
+          {% if p.status=='completed' %}<span class="badge badge-green" style="font-size:.58rem">✅</span>
+          {% elif p.status=='ongoing' %}<span class="badge badge-blue" style="font-size:.58rem">🔄</span>
+          {% elif p.status=='pending' %}<span class="badge badge-amber" style="font-size:.58rem">⏳</span>
+          {% else %}<span class="badge badge-red" style="font-size:.58rem">✕</span>{% endif %}
+          {% if p.priority=='urgent' %}<span class="badge badge-purple" style="font-size:.58rem">🔥</span>
+          {% elif p.priority=='high' %}<span class="badge badge-red" style="font-size:.58rem">↑</span>
+          {% elif p.priority=='low' %}<span class="badge badge-green" style="font-size:.58rem">↓</span>{% endif %}
+        </div>
+      </div>
+      {% if p.description %}<p class="proj-desc">{{ p.description }}</p>{% endif %}
+      {% set prog = p.progress if p.progress is defined else 0 %}
+      <div class="progress-wrap" style="margin:.35rem 0">
+        <div class="progress-label"><span>Progress</span><span>{{ prog }}%</span></div>
+        <div class="progress-bg"><div class="progress-fill" style="width:{{ prog }}%;background:linear-gradient(90deg,#4f46e5,#38bdf8)"></div></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div style="display:flex;align-items:center;gap:.4rem;flex-wrap:wrap">
+          <span class="proj-meta">{% if p.due %}📅 {{ p.due }}{% endif %}</span>
+          {% if p.days_left is defined and p.days_left is not none %}
+            {% if p.days_left < 0 %}<span class="due-chip due-overdue">{{ p.days_left|abs }}d overdue</span>
+            {% elif p.days_left <= 3 %}<span class="due-chip due-soon">{{ p.days_left }}d left</span>
+            {% else %}<span class="due-chip due-ok">{{ p.days_left }}d left</span>{% endif %}
+          {% endif %}
+        </div>
+        <div style="display:flex;gap:.25rem">
+          <button class="btn btn-ghost btn-xs" onclick="openEditProject({{ p.id }},'{{ p.title|replace("'","\\'") }}','{{ p.description|replace("'","\\'") }}','{{ p.status }}','{{ p.priority or "medium" }}',{{ p.progress or 0 }},'{{ p.due or "" }}')">✏️</button>
+          <button class="btn btn-danger btn-xs" onclick="delProject({{ p.id }})">🗑</button>
+        </div>
+      </div>
+    </div>
+    {% endfor %}{% else %}<p class="text-muted text-sm" id="noProjMsg">No projects yet.</p>{% endif %}
+  </div>
+</div>
+
+<!-- notes -->
+<div class="card anim d3" style="margin-bottom:.8rem">
+  <div class="section-hdr"><span class="section-title">📝 Notes ({{ user.notes|length if user.notes else 0 }})</span><button class="btn btn-primary btn-xs" onclick="toggleNoteForm()">+ Add</button></div>
+  <div id="noteForm" style="display:none;background:var(--card2);border:1px solid var(--border2);border-radius:11px;padding:.8rem;margin-bottom:.8rem">
+    <div class="form-group"><label>Note</label><textarea id="nText" style="min-height:65px" placeholder="Write a note…"></textarea></div>
+    <div style="display:flex;gap:.45rem"><button class="btn btn-success btn-sm" onclick="addNote()">💾 Save</button><button class="btn btn-ghost btn-sm" onclick="toggleNoteForm()">Cancel</button></div>
+    <div class="alert" id="noteAlert" style="margin-top:.45rem"></div>
+  </div>
+  <div id="noteList">
+    {% if user.notes %}{% for n in user.notes|reverse %}
+    <div id="note-{{ n.id }}" class="swipeable" style="padding:.55rem 0;border-bottom:1px solid var(--border2)">
+      <div class="swipe-inner">
+        <p style="font-size:.82rem;line-height:1.55;margin-bottom:.28rem">{{ n.text }}</p>
+        <span style="font-size:.66rem;color:var(--text3)">{{ n.by }} · {{ n.created }}</span>
+      </div>
+      <div class="swipe-actions"><button class="btn btn-danger btn-xs" onclick="delNote({{ n.id }})">🗑 Del</button></div>
+    </div>
+    {% endfor %}{% else %}<p class="text-muted text-sm" id="noNoteMsg">No notes yet.</p>{% endif %}
+  </div>
+</div>
+
+<!-- edit profile -->
+<div class="card anim" id="editForm" style="display:none;margin-bottom:.8rem">
+  <div style="font-weight:700;font-size:.9rem;margin-bottom:.8rem">✏️ Edit Profile</div>
+  <div class="form-group"><label>Role</label><input id="eRole" value="{{ user.role }}"></div>
+  <div class="form-group"><label>Description</label><textarea id="eDesc">{{ user.description }}</textarea></div>
+  <div class="form-group"><label>Email</label><input id="eEmail" type="email" value="{{ user.email }}"></div>
+  <div class="form-group"><label>Phone</label><input id="ePhone" type="tel" value="{{ user.phone }}"></div>
+  <div class="form-group"><label>Address</label><input id="eAddr" value="{{ user.address }}"></div>
+  <div class="form-group"><label>Birthday</label><input id="eBday" type="date" value="{{ user.birthday }}"></div>
+  <div class="form-group"><label>Status</label><select id="eStatus"><option value="active" {% if user.status=='active' %}selected{% endif %}>Active</option><option value="inactive" {% if user.status=='inactive' %}selected{% endif %}>Inactive</option></select></div>
+  <div class="form-group"><label>Tags (comma separated)</label><input id="eTags" value="{{ user.tags|join(', ') if user.tags else '' }}"></div>
+
+  <!-- social links -->
+  <div style="margin-bottom:.75rem">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.45rem"><label style="margin:0">Social Links</label><button class="btn btn-ghost btn-xs" onclick="addSocialLink()">+ Add</button></div>
+    <div id="socialLinksList">
+      {% if user.social_links %}{% for sl in user.social_links %}
+      <div class="form-row" style="margin-bottom:.35rem">
+        <input placeholder="Label (e.g. Facebook)" class="sl-label" value="{{ sl.label }}">
+        <input placeholder="URL" class="sl-url" value="{{ sl.url }}">
+      </div>
+      {% endfor %}{% endif %}
+    </div>
+  </div>
+
+  <!-- cover photo -->
+  <div class="form-group">
+    <label>Cover Photo (paste base64 or URL)</label>
+    <input id="eCover" placeholder="https://… or data:image/…" value="{{ user.cover_photo or '' }}">
+  </div>
+
+  <!-- custom fields -->
+  <div style="margin-bottom:.75rem">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.45rem"><label style="margin:0">Custom Fields</label><button class="btn btn-ghost btn-xs" onclick="addCustomField()">+ Add</button></div>
+    <div id="customFieldsList">
+      {% if user.custom_fields %}{% for cf in user.custom_fields %}
+      <div class="form-row" style="margin-bottom:.35rem"><input placeholder="Field name" class="cf-label" value="{{ cf.label }}"><input placeholder="Value" class="cf-value" value="{{ cf.value }}"></div>
+      {% endfor %}{% endif %}
+    </div>
+  </div>
+
+  <div style="display:flex;gap:.5rem"><button class="btn btn-success btn-sm" onclick="saveEdit()">💾 Save</button><button class="btn btn-ghost btn-sm" onclick="toggleEdit()">Cancel</button></div>
+  <div class="alert" id="editAlert" style="margin-top:.6rem"></div>
+</div>
+
+{% endblock %}
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+const UID='{{ user.uid }}';
+const PROFILE_URL=location.origin+'/profile/'+UID;
+function toggle(id){const el=document.getElementById(id);el.style.display=el.style.display==='none'?'block':'none';if(el.style.display==='block')el.scrollIntoView({behavior:'smooth',block:'nearest'});}
+function toggleEdit(){toggle('editForm');}
+function toggleProjForm(){toggle('projForm');}
+function toggleNoteForm(){toggle('noteForm');}
+function toggleRetake(){toggle('retakeSection');if(document.getElementById('retakeSection').style.display!=='none')startRetakeCam();}
+function showA(id,msg,type){const el=document.getElementById(id);el.className='alert '+type;el.textContent=msg;el.style.display='block';}
+
+// QR code
+function showQR(){
+  const m=document.getElementById('qrModal'); m.style.display='flex';
+  const c=document.getElementById('qrContainer'); c.innerHTML='';
+  new QRCode(c,{text:PROFILE_URL,width:180,height:180,colorDark:'#000',colorLight:'#fff',correctLevel:QRCode.CorrectLevel.M});
+}
+
+// ID card
+function showIDCard(){document.getElementById('idModal').style.display='flex';}
+
+async function saveEdit(){
+  const tags=document.getElementById('eTags').value.split(',').map(t=>t.trim()).filter(Boolean);
+  const cfLabels=document.querySelectorAll('.cf-label'), cfVals=document.querySelectorAll('.cf-value');
+  const custom_fields=[]; for(let i=0;i<cfLabels.length;i++){if(cfLabels[i].value.trim())custom_fields.push({label:cfLabels[i].value.trim(),value:cfVals[i].value.trim()});}
+  const slLabels=document.querySelectorAll('.sl-label'), slUrls=document.querySelectorAll('.sl-url');
+  const social_links=[]; for(let i=0;i<slLabels.length;i++){if(slUrls[i].value.trim())social_links.push({label:slLabels[i].value.trim(),url:slUrls[i].value.trim(),icon:'🔗'});}
+  const r=await fetch('/api/profile/'+UID+'/update',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({role:document.getElementById('eRole').value,description:document.getElementById('eDesc').value,
+      email:document.getElementById('eEmail').value,phone:document.getElementById('ePhone').value,
+      address:document.getElementById('eAddr').value,birthday:document.getElementById('eBday').value,
+      status:document.getElementById('eStatus').value,cover_photo:document.getElementById('eCover').value,
+      tags,custom_fields,social_links})});
+  const d=await r.json();
+  if(d.success){showA('editAlert','✅ Saved!','ok');setTimeout(()=>location.reload(),900);}
+  else showA('editAlert','Error.','err');
+}
+function addCustomField(){document.getElementById('customFieldsList').insertAdjacentHTML('beforeend','<div class="form-row" style="margin-bottom:.35rem"><input placeholder="Field name" class="cf-label"><input placeholder="Value" class="cf-value"></div>');}
+function addSocialLink(){document.getElementById('socialLinksList').insertAdjacentHTML('beforeend','<div class="form-row" style="margin-bottom:.35rem"><input placeholder="Label (e.g. Facebook)" class="sl-label"><input placeholder="URL" class="sl-url"></div>');}
+
+// projects
+function buildProjHTML(p){
+  const sm={ongoing:'<span class="badge badge-blue" style="font-size:.58rem">🔄</span>',completed:'<span class="badge badge-green" style="font-size:.58rem">✅</span>',pending:'<span class="badge badge-amber" style="font-size:.58rem">⏳</span>',cancelled:'<span class="badge badge-red" style="font-size:.58rem">✕</span>'};
+  const pm={urgent:'<span class="badge badge-purple" style="font-size:.58rem">🔥</span>',high:'<span class="badge badge-red" style="font-size:.58rem">↑</span>',low:'<span class="badge badge-green" style="font-size:.58rem">↓</span>',medium:''};
+  const prog=p.progress||0;
+  return `<div class="proj-card prio-${p.priority||'medium'}" id="proj-${p.id}">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.28rem"><div class="proj-title">${p.title}</div><div style="display:flex;gap:.22rem">${sm[p.status]||''}${pm[p.priority]||''}</div></div>
+    ${p.description?`<p class="proj-desc">${p.description}</p>`:''}
+    <div class="progress-wrap" style="margin:.35rem 0"><div class="progress-label"><span>Progress</span><span>${prog}%</span></div><div class="progress-bg"><div class="progress-fill" style="width:${prog}%;background:linear-gradient(90deg,#4f46e5,#38bdf8)"></div></div></div>
+    <div style="display:flex;justify-content:space-between;align-items:center"><span class="proj-meta">${p.due?'📅 '+p.due:''}</span>
+    <div style="display:flex;gap:.25rem"><button class="btn btn-ghost btn-xs" onclick="openEditProject(${p.id},'${p.title.replace(/'/g,"\\'")}','${(p.description||'').replace(/'/g,"\\'")}','${p.status}','${p.priority||'medium'}',${prog},'${p.due||''}')">✏️</button><button class="btn btn-danger btn-xs" onclick="delProject(${p.id})">🗑</button></div></div></div>`;
+}
+async function addProject(){
+  const title=document.getElementById('pTitle').value.trim();
+  if(!title){showA('projAlert','Title required.','err');return;}
+  const r=await fetch('/api/profile/'+UID+'/project/add',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({title,description:document.getElementById('pDesc').value,status:document.getElementById('pStatus').value,
+      priority:document.getElementById('pPriority').value,progress:parseInt(document.getElementById('pProgress').value)||0,due:document.getElementById('pDue').value})});
+  const d=await r.json();
+  if(d.success){document.getElementById('noProjMsg')?.remove();document.getElementById('projList').insertAdjacentHTML('afterbegin',buildProjHTML(d.project));document.getElementById('pTitle').value='';toggleProjForm();}
+  else showA('projAlert',d.message||'Error.','err');
+}
+function openEditProject(id,title,desc,status,priority,progress,due){
+  document.getElementById('editProjId').value=id;document.getElementById('epTitle').value=title;document.getElementById('epDesc').value=desc;
+  document.getElementById('epStatus').value=status;document.getElementById('epPriority').value=priority;
+  document.getElementById('epProgress').value=progress;document.getElementById('epProgressLabel').textContent=progress+'%';
+  document.getElementById('epDue').value=due;
+  const f=document.getElementById('editProjForm');f.style.display='block';f.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+async function saveEditProject(){
+  const pid=parseInt(document.getElementById('editProjId').value);
+  await fetch('/api/profile/'+UID+'/project/edit/'+pid,{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({title:document.getElementById('epTitle').value,description:document.getElementById('epDesc').value,
+      status:document.getElementById('epStatus').value,priority:document.getElementById('epPriority').value,
+      progress:parseInt(document.getElementById('epProgress').value)||0,due:document.getElementById('epDue').value})});
+  document.getElementById('editProjForm').style.display='none'; location.reload();
+}
+async function delProject(pid){if(!confirm('Delete project?'))return;await fetch('/api/profile/'+UID+'/project/delete/'+pid,{method:'DELETE'});document.getElementById('proj-'+pid)?.remove();}
+
+async function addNote(){
+  const text=document.getElementById('nText').value.trim();
+  if(!text){showA('noteAlert','Note empty.','err');return;}
+  const r=await fetch('/api/profile/'+UID+'/note/add',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text})});
+  const d=await r.json();
+  if(d.success){
+    const n=d.note;
+    const html=`<div id="note-${n.id}" class="swipeable" style="padding:.55rem 0;border-bottom:1px solid var(--border2)"><div class="swipe-inner"><p style="font-size:.82rem;line-height:1.55;margin-bottom:.28rem">${n.text}</p><span style="font-size:.66rem;color:var(--text3)">${n.by} · ${n.created}</span></div><div class="swipe-actions"><button class="btn btn-danger btn-xs" onclick="delNote(${n.id})">🗑 Del</button></div></div>`;
+    document.getElementById('noNoteMsg')?.remove();document.getElementById('noteList').insertAdjacentHTML('afterbegin',html);
+    document.getElementById('nText').value='';toggleNoteForm();
+  } else showA('noteAlert','Error.','err');
+}
+async function delNote(nid){if(!confirm('Delete note?'))return;await fetch('/api/profile/'+UID+'/note/delete/'+nid,{method:'DELETE'});document.getElementById('note-'+nid)?.remove();}
+async function delUser(uid,name){if(!confirm('Permanently delete '+name+'?'))return;const r=await fetch('/api/delete_user/'+uid,{method:'DELETE'});if((await r.json()).success)location.href='/people';}
+
+// retake photos
+let retakePhotos=[],retakeCamStream=null;
+async function startRetakeCam(){
+  if(retakeCamStream)return;
+  retakeCamStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user'}}).catch(()=>null);
+  if(!retakeCamStream){showA('retakeAlert','Camera denied.','err');return;}
+  const v=document.getElementById('retakeVideo'); v.srcObject=retakeCamStream;
+  v.onloadedmetadata=()=>{
+    const c=document.getElementById('retakeCanvas');
+    const loop=()=>{c.width=v.offsetWidth;c.height=v.offsetHeight;const ctx=c.getContext('2d');ctx.clearRect(0,0,c.width,c.height);const cx=c.width/2,cy=c.height/2;ctx.beginPath();ctx.ellipse(cx,cy,c.width*.27,c.height*.37,0,0,Math.PI*2);ctx.strokeStyle='rgba(56,189,248,.45)';ctx.lineWidth=2;ctx.setLineDash([7,5]);ctx.stroke();ctx.setLineDash([]);requestAnimationFrame(loop);};loop();};
+}
+function retakeCapture(){
+  const v=document.getElementById('retakeVideo');if(retakePhotos.length>=5)return;
+  const c=document.createElement('canvas');c.width=v.videoWidth||640;c.height=v.videoHeight||480;
+  const x=c.getContext('2d');x.translate(c.width,0);x.scale(-1,1);x.drawImage(v,0,0);
+  const img=c.toDataURL('image/jpeg',.88);retakePhotos.push(img);
+  const slot=document.getElementById('rs'+(retakePhotos.length-1));slot.innerHTML=`<img src="${img}" style="width:100%;height:100%;object-fit:cover">`;slot.style.borderColor='var(--green)';
+  document.getElementById('btnSavePhotos').disabled=false;if(retakePhotos.length>=5)document.getElementById('btnRetake').disabled=true;
+}
+function resetRetake(){retakePhotos=[];for(let i=0;i<5;i++){const s=document.getElementById('rs'+i);s.innerHTML=(i+1).toString();s.style.borderColor='rgba(255,255,255,.12)';}document.getElementById('btnSavePhotos').disabled=true;document.getElementById('btnRetake').disabled=false;}
+async function saveRetake(){
+  if(!retakePhotos.length){showA('retakeAlert','No photos.','err');return;}
+  const r=await fetch('/api/profile/'+UID+'/update_photo',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({photos:retakePhotos})});
+  if((await r.json()).success){showA('retakeAlert','✅ Photos updated!','ok');setTimeout(()=>location.reload(),900);}
+  else showA('retakeAlert','Error.','err');
+}
+</script>
+{% endblock %}
