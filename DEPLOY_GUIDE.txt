@@ -1,0 +1,152 @@
+╔══════════════════════════════════════════════════════════════════╗
+║         FaceGuard Nexus v10 — FULL DEPLOYMENT GUIDE             ║
+║         From your Android phone to live on the internet          ║
+╚══════════════════════════════════════════════════════════════════╝
+
+📋 WHAT YOU NEED (all free):
+  • A GitHub account     → github.com
+  • A Render account     → render.com
+  • This project folder
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  PART 1 — UPLOAD CODE TO GITHUB
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Step 1. Go to https://github.com on your phone
+Step 2. Sign up or log in
+Step 3. Tap the ➕ icon → "New repository"
+Step 4. Name it: faceguard-nexus
+Step 5. Set to PUBLIC (required for free Render)
+Step 6. Tap "Create repository"
+
+Step 7. On the next page, tap "uploading an existing file"
+Step 8. Upload ALL files from this folder:
+          app.py
+          requirements.txt
+          Procfile
+          render.yaml
+          runtime.txt
+          .gitignore
+          static/  (folder with style.css, manifest.json)
+          templates/ (folder with all .html files)
+
+  ⚠️  You can upload folders by dragging them in on a computer.
+      On phone: upload files one by one or use GitHub Desktop app.
+
+Step 9. Tap "Commit changes"
+Step 10. Your code is now on GitHub ✅
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  PART 2 — DEPLOY ON RENDER (free hosting)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Step 1. Go to https://render.com
+Step 2. Sign up with your GitHub account (same account!)
+Step 3. Click "New +" → "Web Service"
+Step 4. Connect your GitHub → select "faceguard-nexus"
+Step 5. Fill in these settings:
+          Name:           faceguard-nexus (or anything)
+          Runtime:        Python 3
+          Build Command:  pip install -r requirements.txt
+          Start Command:  gunicorn app:app --workers 2 --bind 0.0.0.0:$PORT --timeout 120
+          Plan:           FREE ✅
+
+Step 6. Scroll down to "Environment Variables" → Add:
+          Key: SECRET_KEY
+          Value: (click "Generate" button — Render will make one)
+
+          Key: PRODUCTION
+          Value: true
+
+          Key: DB_PATH
+          Value: /opt/render/project/src/nexus.db
+
+Step 7. Scroll to "Disk" section → Add Disk:
+          Name:       nexus-data
+          Mount Path: /opt/render/project/src
+          Size:       1 GB (free)
+
+  ⚠️  THE DISK IS CRITICAL. Without it, your database
+      gets wiped every time the server restarts!
+
+Step 8. Click "Create Web Service"
+Step 9. Wait 3–5 minutes for it to build and deploy
+Step 10. Render gives you a URL like:
+           https://faceguard-nexus.onrender.com
+
+Your app is now LIVE on the internet! ✅
+Everyone can access it from any device. 🎉
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  PART 3 — FIRST TIME SETUP (after deploy)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Step 1. Open your Render URL in Chrome
+Step 2. You'll be redirected to /apply (no users yet)
+Step 3. Go to YOUR_URL/register instead
+Step 4. Fill your info — set Role Type to ADMIN
+Step 5. Take 5 face photos → Register
+Step 6. You are now the admin!
+Step 7. Go to /login → scan your face → you're in
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  PART 4 — HOW OTHERS JOIN
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Option A — Share the apply link:
+  Send people to: https://YOUR_APP.onrender.com/apply
+  They fill their info + take face photos → Submit
+  You approve or reject from /pending
+
+Option B — Use invite links (more secure):
+  Go to /settings → Invite Links → Generate
+  Share that specific link to specific people only
+  Disable the link when done
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  IMPORTANT NOTES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+⚠️  FREE RENDER TIER SLEEPS after 15 minutes of no traffic.
+    First visit after sleep takes ~30 seconds to wake up.
+    This is normal. Upgrade to paid ($7/mo) to keep it awake.
+
+⚠️  HTTPS is automatic on Render.
+    Camera (face login) requires HTTPS and works fine.
+
+⚠️  YOUR DATABASE lives at /opt/render/project/src/nexus.db
+    The 1GB disk keeps it safe across restarts.
+    Always export a backup from /settings regularly.
+
+⚠️  IF YOU UPDATE THE CODE:
+    Push the change to GitHub.
+    Render auto-deploys in ~2 minutes.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  RUNNING LOCALLY (on Pydroid3 still works!)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+This version still runs on your Android phone:
+  1. Install: flask  numpy  Pillow  (no gunicorn needed locally)
+  2. Open app.py → ▶ Run in Pydroid3
+  3. Open Chrome → http://127.0.0.1:5000
+
+The database is now nexus.db instead of JSON files.
+Everything else works exactly the same.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  SECURITY CHECKLIST BEFORE SHARING
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ✅ Set a strong backup PIN in /settings
+  ✅ Set a high face match threshold (80%+) in /settings
+  ✅ Keep your GitHub repo PUBLIC but never put
+     your SECRET_KEY in code (it's in Render env vars)
+  ✅ Export a backup after every important change
+  ✅ Regularly check the Audit Trail (/audit)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  QUESTIONS?
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Ask Claude at claude.ai — describe exactly
+  what step you're on and what error you see.
