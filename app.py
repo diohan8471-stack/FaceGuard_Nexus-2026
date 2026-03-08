@@ -1043,6 +1043,10 @@ def api_search():
 def api_pending_count():
     return jsonify(count=pending_count())
 
+# Initialize DB for Gunicorn
+with app.app_context():
+    init_db()
+
 # ── Startup ───────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     app.config["START_TIME"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
